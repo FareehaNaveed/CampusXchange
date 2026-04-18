@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusXchange — Exchange Smart, Live Smart</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter','sans-serif'], syne: ['Syne','sans-serif'] },
+          colors: {
+            primary: '#2563EB',
+            accent:  '#FFC107',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { font-family: 'Inter', sans-serif; }
+    body { overflow-x: hidden; }
+
+    /* ── Page system ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Glassmorphism ── */
+    .glass {
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .dark .glass {
+      background: rgba(15,23,42,0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* ── Noise overlay ── */
+    .noise::after {
+      content:'';
+      position:absolute; inset:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events:none; border-radius:inherit;
+    }
+
+    /* ── Gradient mesh ── */
+    .mesh-bg {
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 20%, rgba(37,99,235,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(255,193,7,0.10) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 60% 10%, rgba(37,99,235,0.08) 0%, transparent 50%);
+    }
+    .dark .mesh-bg {
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 20%, rgba(37,99,235,0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(255,193,7,0.12) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 60% 10%, rgba(37,99,235,0.10) 0%, transparent 50%);
+    }
+
+    /* ── Floating blobs ── */
+    @keyframes blob1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(40px,-30px) scale(1.05)} 66%{transform:translate(-20px,20px) scale(0.97)} }
+    @keyframes blob2 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-30px,40px) scale(1.07)} 66%{transform:translate(30px,-20px) scale(0.95)} }
+    @keyframes blob3 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(20px,30px) scale(1.03)} 66%{transform:translate(-30px,-20px) scale(1.06)} }
+    .blob1 { animation: blob1 12s ease-in-out infinite; }
+    .blob2 { animation: blob2 14s ease-in-out infinite; }
+    .blob3 { animation: blob3 10s ease-in-out infinite; }
+
+    /* ── Fade-in ── */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(32px)} to{opacity:1;transform:translateY(0)} }
+    .fade-up { animation: fadeUp 0.7s cubic-bezier(.23,1,.32,1) forwards; opacity:0; }
+    .delay-1 { animation-delay:.1s }
+    .delay-2 { animation-delay:.22s }
+    .delay-3 { animation-delay:.36s }
+    .delay-4 { animation-delay:.5s }
+    .delay-5 { animation-delay:.64s }
+
+    /* ── Burger lines ── */
+    .burger-line { transition: all .35s cubic-bezier(.23,1,.32,1); }
+    .burger-open .burger-line:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+    .burger-open .burger-line:nth-child(2) { opacity:0; transform:scaleX(0); }
+    .burger-open .burger-line:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+
+    /* ── Mobile overlay ── */
+    #mobile-menu {
+      position:fixed; inset:0; z-index:9999;
+      background: rgba(10,15,30,0.97);
+      backdrop-filter: blur(24px);
+      transform: translateX(100%);
+      transition: transform .45s cubic-bezier(.23,1,.32,1);
+    }
+    #mobile-menu.open { transform: translateX(0); }
+    .nav-link-mobile { transition: color .2s; }
+
+    /* ── Card hover ── */
+    .card-hover {
+      transition: transform .3s cubic-bezier(.23,1,.32,1), box-shadow .3s;
+    }
+    .card-hover:hover { transform: translateY(-6px); box-shadow: 0 24px 48px rgba(37,99,235,0.15); }
+
+    /* ── Pill badge ── */
+    .badge {
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:.7rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+      padding: 4px 12px; border-radius:999px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:#2563EB; border-radius:99px; }
+
+    /* ── Star rating ── */
+    .stars { color: #FFC107; }
+
+    /* ── Modal ── */
+    #modal-overlay {
+      position:fixed; inset:0; z-index:10000;
+      background:rgba(0,0,0,0.7);
+      backdrop-filter:blur(8px);
+      display:none; align-items:center; justify-content:center;
+    }
+    #modal-overlay.open { display:flex; }
+
+    /* ── LMS sidebar active ── */
+    .lms-item.active { background: rgba(37,99,235,.12); border-left: 3px solid #2563EB; }
+
+    /* ── Progress bar ── */
+    @keyframes progBar { from{width:0} to{width:var(--prog)} }
+    .prog-bar { animation: progBar 1.2s cubic-bezier(.23,1,.32,1) forwards; }
+
+    /* ── Typing cursor ── */
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .cursor { animation: blink 1s infinite; }
+
+    /* ── Shine btn ── */
+    .btn-shine {
+      position:relative; overflow:hidden;
+    }
+    .btn-shine::after {
+      content:''; position:absolute; top:0; left:-100%; width:60%; height:100%;
+      background:linear-gradient(120deg,transparent,rgba(255,255,255,.25),transparent);
+      transition: left .5s;
+    }
+    .btn-shine:hover::after { left:140%; }
+
+    /* ── Section title underline ── */
+    .section-title span { position:relative; }
+    .section-title span::after {
+      content:''; position:absolute; left:0; bottom:-4px; height:3px; width:100%;
+      background:linear-gradient(90deg,#2563EB,#FFC107);
+      border-radius:99px;
+    }
+
+    /* ── Dark mode base ── */
+    .dark body { background:#060D1F; color:#E2E8F0; }
+
+    /* ── Timeline ── */
+    .timeline-dot { width:12px; height:12px; border-radius:50%; background:#2563EB; flex-shrink:0; margin-top:4px; }
+
+    /* ── Tag chip ── */
+    .chip {
+      font-size:.7rem; font-weight:600; padding:3px 10px; border-radius:999px;
+      background:rgba(37,99,235,.1); color:#2563EB; border:1px solid rgba(37,99,235,.25);
+    }
+    .dark .chip { background:rgba(37,99,235,.2); color:#93C5FD; border-color:rgba(37,99,235,.35); }
+  </style>
+</head>
+
+<body class="bg-white dark:bg-[#060D1F] text-slate-900 dark:text-slate-100 transition-colors duration-300">
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║                     NAVBAR                          ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16 lg:h-20">
+
+      <!-- Logo -->
+      <button onclick="showPage('home')" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-105 transition-transform">
+          <span class="text-white font-syne font-bold text-sm">CX</span>
+        </div>
+        <span class="font-syne font-bold text-xl tracking-tight">CampusXchange</span>
+      </button>
+
+      <!-- Desktop Nav -->
+      <div class="hidden md:flex items-center gap-1">
+        <button onclick="showPage('home')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/10 hover:text-primary transition-colors" data-page="home">Home</button>
+        <button onclick="showPage('marketplace')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/10 hover:text-primary transition-colors" data-page="marketplace">Marketplace</button>
+        <button onclick="showPage('skillhub')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/10 hover:text-primary transition-colors" data-page="skillhub">Skill Hub</button>
+        <button onclick="showPage('whoweare')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/10 hover:text-primary transition-colors" data-page="whoweare">Who We Are</button>
+        <button onclick="showPage('services')" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/10 hover:text-primary transition-colors" data-page="services">Services</button>
+      </div>
+
+      <!-- Right controls -->
+      <div class="flex items-center gap-3">
+        <!-- Theme toggle -->
+        <button id="theme-toggle" onclick="toggleTheme()" class="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle theme">
+          <i class="fa-solid fa-sun text-amber-400 hidden dark:block"></i>
+          <i class="fa-solid fa-moon text-slate-600 dark:hidden"></i>
+        </button>
+        <!-- Login btn -->
+        <button onclick="openModal('login')" class="hidden md:flex btn-shine items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-primary/25 hover:bg-blue-700 transition-all duration-200">
+          <i class="fa-solid fa-right-to-bracket text-xs"></i> Login
+        </button>
+        <!-- Burger -->
+        <button id="burger-btn" onclick="toggleMenu()" class="md:hidden w-10 h-10 flex flex-col items-center justify-center gap-[6px]" aria-label="Menu">
+          <span class="burger-line h-[2px] w-6 bg-current rounded-full block"></span>
+          <span class="burger-line h-[2px] w-6 bg-current rounded-full block"></span>
+          <span class="burger-line h-[2px] w-6 bg-current rounded-full block"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║                  MOBILE MENU                        ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<div id="mobile-menu" role="dialog" aria-modal="true">
+  <!-- Close btn -->
+  <button onclick="toggleMenu()" class="absolute top-5 right-5 w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition">
+    <i class="fa-solid fa-xmark text-lg"></i>
+  </button>
+
+  <div class="flex flex-col h-full px-8 pt-24 pb-12">
+    <!-- Brand -->
+    <div class="mb-10">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/40">
+          <span class="text-white font-syne font-bold">CX</span>
+        </div>
+        <span class="font-syne font-bold text-2xl text-white">CampusXchange</span>
+      </div>
+      <p class="text-slate-400 text-sm ml-[52px]">Exchange Smart, Live Smart</p>
+    </div>
+
+    <!-- Nav links -->
+    <nav class="flex flex-col gap-1 flex-1">
+      <button onclick="showPage('home');toggleMenu()" class="mobile-nav-item text-left px-5 py-4 rounded-2xl text-white text-lg font-semibold hover:bg-white/10 transition-all flex items-center gap-4 group">
+        <span class="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary transition-colors"><i class="fa-solid fa-house text-sm text-primary group-hover:text-white"></i></span>
+        Home
+      </button>
+      <button onclick="showPage('marketplace');toggleMenu()" class="mobile-nav-item text-left px-5 py-4 rounded-2xl text-white text-lg font-semibold hover:bg-white/10 transition-all flex items-center gap-4 group">
+        <span class="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500 transition-colors"><i class="fa-solid fa-store text-sm text-emerald-400 group-hover:text-white"></i></span>
+        Marketplace
+      </button>
+      <button onclick="showPage('skillhub');toggleMenu()" class="mobile-nav-item text-left px-5 py-4 rounded-2xl text-white text-lg font-semibold hover:bg-white/10 transition-all flex items-center gap-4 group">
+        <span class="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center group-hover:bg-violet-500 transition-colors"><i class="fa-solid fa-graduation-cap text-sm text-violet-400 group-hover:text-white"></i></span>
+        Skill Hub
+      </button>
+      <button onclick="showPage('whoweare');toggleMenu()" class="mobile-nav-item text-left px-5 py-4 rounded-2xl text-white text-lg font-semibold hover:bg-white/10 transition-all flex items-center gap-4 group">
+        <span class="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500 transition-colors"><i class="fa-solid fa-users text-sm text-amber-400 group-hover:text-white"></i></span>
+        Who We Are
+      </button>
+      <button onclick="showPage('services');toggleMenu()" class="mobile-nav-item text-left px-5 py-4 rounded-2xl text-white text-lg font-semibold hover:bg-white/10 transition-all flex items-center gap-4 group">
+        <span class="w-9 h-9 rounded-xl bg-rose-500/20 flex items-center justify-center group-hover:bg-rose-500 transition-colors"><i class="fa-solid fa-bolt text-sm text-rose-400 group-hover:text-white"></i></span>
+        Services
+      </button>
+    </nav>
+
+    <!-- Bottom CTA -->
+    <div class="space-y-3 mt-8">
+      <button onclick="openModal('login');toggleMenu()" class="btn-shine w-full bg-primary text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:bg-blue-700 transition">
+        <i class="fa-solid fa-right-to-bracket"></i> Login / Sign Up
+      </button>
+      <p class="text-center text-slate-500 text-xs">By continuing you agree to our Terms of Service</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--                    PAGE: HOME                         -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- HERO -->
+  <section class="relative min-h-screen flex items-center justify-center overflow-hidden mesh-bg noise pt-20">
+    <!-- Blobs -->
+    <div class="blob1 absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-primary/20 blur-3xl pointer-events-none"></div>
+    <div class="blob2 absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-accent/15 blur-3xl pointer-events-none"></div>
+    <div class="blob3 absolute top-1/2 right-1/3 w-64 h-64 rounded-full bg-primary/10 blur-2xl pointer-events-none"></div>
+
+    <div class="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 text-center">
+      <!-- Badge -->
+      <div class="fade-up delay-1 inline-flex items-center gap-2 glass px-4 py-2 rounded-full text-sm font-semibold text-primary dark:text-blue-400 mb-8 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+        Pakistan's #1 Campus Exchange Platform
+      </div>
+
+      <!-- Logo mark -->
+      <div class="fade-up delay-2 flex justify-center mb-6">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-blue-700 flex items-center justify-center shadow-2xl shadow-primary/40">
+          <span class="font-syne font-extrabold text-white text-3xl">CX</span>
+        </div>
+      </div>
+
+      <!-- Heading -->
+      <h1 class="fade-up delay-2 font-syne font-extrabold text-5xl sm:text-6xl lg:text-7xl leading-tight mb-6">
+        Exchange <span class="text-primary">Smart</span>,<br/>Live <span class="text-primary">Smart</span>
+      </h1>
+      <p class="fade-up delay-3 text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        The all-in-one platform where campus students buy, sell, and learn — building skills and saving money, together.
+      </p>
+
+      <!-- CTA row -->
+      <div class="fade-up delay-4 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+        <button onclick="openModal('signup')" class="btn-shine w-full sm:w-auto bg-primary text-white px-8 py-4 rounded-2xl font-bold text-base shadow-xl shadow-primary/30 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+          Get Started Free <i class="fa-solid fa-arrow-right"></i>
+        </button>
+        <button onclick="showPage('marketplace')" class="w-full sm:w-auto glass text-slate-700 dark:text-slate-200 px-8 py-4 rounded-2xl font-bold text-base hover:bg-white/20 dark:hover:bg-white/10 transition-all flex items-center justify-center gap-2">
+          Browse Marketplace <i class="fa-solid fa-store"></i>
+        </button>
+      </div>
+
+      <!-- Stats row -->
+      <div class="fade-up delay-5 grid grid-cols-3 gap-4 max-w-lg mx-auto">
+        <div class="glass rounded-2xl p-4">
+          <p class="font-syne font-bold text-2xl text-primary">12K+</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Students</p>
+        </div>
+        <div class="glass rounded-2xl p-4">
+          <p class="font-syne font-bold text-2xl text-primary">3.8K</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Listings</p>
+        </div>
+        <div class="glass rounded-2xl p-4">
+          <p class="font-syne font-bold text-2xl text-primary">240+</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Courses</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-slate-400 text-xs">
+      <span>Scroll</span>
+      <div class="w-[1px] h-8 bg-gradient-to-b from-slate-400 to-transparent animate-bounce"></div>
+    </div>
+  </section>
+
+  <!-- FEATURES SECTION -->
+  <section class="py-28 px-4 sm:px-6 max-w-7xl mx-auto">
+    <div class="text-center mb-16">
+      <p class="text-primary font-semibold text-sm uppercase tracking-widest mb-3">What We Offer</p>
+      <h2 class="section-title font-syne font-extrabold text-4xl sm:text-5xl mb-4">
+        Everything campus life needs
+      </h2>
+      <p class="text-slate-500 dark:text-slate-400 max-w-xl mx-auto">One platform, two powerful pillars — trade what you have, learn what you need.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8">
+      <!-- Marketplace Card -->
+      <div onclick="showPage('marketplace')" class="card-hover cursor-pointer group relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/40 p-8">
+        <div class="absolute top-0 right-0 w-48 h-48 rounded-full bg-emerald-400/10 -translate-y-12 translate-x-12 group-hover:scale-125 transition-transform duration-700"></div>
+        <span class="chip mb-4 block w-fit" style="background:rgba(16,185,129,.1);color:#059669;border-color:rgba(16,185,129,.25)">Marketplace</span>
+        <div class="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30 group-hover:rotate-6 transition-transform">
+          <i class="fa-solid fa-store text-white text-xl"></i>
+        </div>
+        <h3 class="font-syne font-bold text-2xl mb-3">Buy & Sell on Campus</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">Post your old textbooks, gadgets, furniture, and find amazing deals from fellow students — safely and instantly.</p>
+        <span class="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm group-hover:gap-3 transition-all">
+          Browse Listings <i class="fa-solid fa-arrow-right"></i>
+        </span>
+      </div>
+
+      <!-- Skill Hub Card -->
+      <div onclick="showPage('skillhub')" class="card-hover cursor-pointer group relative rounded-3xl overflow-hidden bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/30 border border-violet-100 dark:border-violet-900/40 p-8">
+        <div class="absolute top-0 right-0 w-48 h-48 rounded-full bg-violet-400/10 -translate-y-12 translate-x-12 group-hover:scale-125 transition-transform duration-700"></div>
+        <span class="chip mb-4 block w-fit" style="background:rgba(139,92,246,.1);color:#7C3AED;border-color:rgba(139,92,246,.25)">Skill Hub</span>
+        <div class="w-14 h-14 rounded-2xl bg-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-violet-500/30 group-hover:rotate-6 transition-transform">
+          <i class="fa-solid fa-graduation-cap text-white text-xl"></i>
+        </div>
+        <h3 class="font-syne font-bold text-2xl mb-3">Learn & Grow Skills</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">Access free and premium courses taught by top instructors. Upskill in tech, design, business, and more — all from campus.</p>
+        <span class="inline-flex items-center gap-2 text-violet-600 dark:text-violet-400 font-semibold text-sm group-hover:gap-3 transition-all">
+          Explore Courses <i class="fa-solid fa-arrow-right"></i>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="py-20 bg-slate-50 dark:bg-slate-900/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <p class="text-primary font-semibold text-sm uppercase tracking-widest mb-3">Loved By Students</p>
+        <h2 class="font-syne font-extrabold text-3xl sm:text-4xl">What our community says</h2>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- testimonial cards -->
+        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover">
+          <div class="stars text-base mb-3">★★★★★</div>
+          <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-5">"Sold my old laptop in 2 hours! CampusXchange is literally the best thing to happen to student life."</p>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-blue-400 flex items-center justify-center text-white font-bold text-sm">AK</div>
+            <div><p class="font-semibold text-sm">Ahmed Khan</p><p class="text-xs text-slate-400">LUMS, Lahore</p></div>
+          </div>
+        </div>
+        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover">
+          <div class="stars text-base mb-3">★★★★★</div>
+          <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-5">"The Skill Hub Pro plan is insane value. I learned UI/UX design in 3 weeks and landed a freelance client!"</p>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-400 flex items-center justify-center text-white font-bold text-sm">ZF</div>
+            <div><p class="font-semibold text-sm">Zara Fatima</p><p class="text-xs text-slate-400">NUST, Islamabad</p></div>
+          </div>
+        </div>
+        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover sm:col-span-2 lg:col-span-1">
+          <div class="stars text-base mb-3">★★★★★</div>
+          <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-5">"The community here is amazing. Found study partners, bought affordable books, and even got a part-time gig!"</p>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold text-sm">OM</div>
+            <div><p class="font-semibold text-sm">Omar Malik</p><p class="text-xs text-slate-400">IBA, Karachi</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMAGE GRID SECTION -->
+  <section class="py-24 max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="text-center mb-12">
+      <p class="text-primary font-semibold text-sm uppercase tracking-widest mb-3">Campus Life</p>
+      <h2 class="font-syne font-extrabold text-3xl sm:text-4xl">Real students, real stories</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="col-span-2 row-span-2 rounded-3xl overflow-hidden bg-gradient-to-br from-primary to-blue-900 flex items-end p-6 min-h-[240px] card-hover">
+        <div>
+          <span class="badge bg-white/20 text-white mb-2"><i class="fa-solid fa-circle-check text-accent"></i> Verified Listings</span>
+          <h4 class="font-syne font-bold text-white text-xl">Safe & Trusted Trading</h4>
+          <p class="text-blue-200 text-sm mt-1">Every listing verified by our campus team</p>
+        </div>
+      </div>
+      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-600 flex items-end p-5 min-h-[110px] card-hover">
+        <div><p class="font-bold text-white font-syne">3.8K Listings</p><p class="text-emerald-100 text-xs">Active right now</p></div>
+      </div>
+      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-violet-500 to-purple-700 flex items-end p-5 min-h-[110px] card-hover">
+        <div><p class="font-bold text-white font-syne">240+ Courses</p><p class="text-violet-200 text-xs">Free & Pro plans</p></div>
+      </div>
+      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex items-end p-5 min-h-[110px] card-hover">
+        <div><p class="font-bold text-white font-syne">12K+ Students</p><p class="text-amber-100 text-xs">Growing community</p></div>
+      </div>
+      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-rose-400 to-pink-600 flex items-end p-5 min-h-[110px] card-hover">
+        <div><p class="font-bold text-white font-syne">Peer Learning</p><p class="text-rose-100 text-xs">Student-led sessions</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BANNER -->
+  <section class="py-20 px-4 sm:px-6 max-w-7xl mx-auto">
+    <div class="relative rounded-3xl bg-gradient-to-br from-primary to-blue-800 overflow-hidden noise p-10 sm:p-16 text-center">
+      <div class="blob1 absolute top-0 right-0 w-72 h-72 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
+      <p class="text-blue-200 text-sm font-semibold uppercase tracking-widest mb-4">Join the movement</p>
+      <h2 class="font-syne font-extrabold text-3xl sm:text-5xl text-white mb-6">Ready to Exchange Smart?</h2>
+      <p class="text-blue-200 text-lg mb-10 max-w-xl mx-auto">Start selling your stuff or enroll in a course today — completely free to get started.</p>
+      <button onclick="openModal('signup')" class="btn-shine inline-flex items-center gap-2 bg-white text-primary px-8 py-4 rounded-2xl font-bold text-base hover:bg-slate-100 transition shadow-xl">
+        Create Free Account <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+  </section>
+
+</div><!-- /page-home -->
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--                  PAGE: MARKETPLACE                    -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-marketplace" class="page">
+  <div class="pt-28 pb-20 px-4 sm:px-6 max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-10">
+      <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-4">
+        <button onclick="showPage('home')" class="hover:text-primary transition-colors">Home</button>
+        <span>/</span> <span class="text-slate-900 dark:text-white font-medium">Marketplace</span>
+      </div>
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        <div>
+          <h1 class="font-syne font-extrabold text-4xl sm:text-5xl mb-3">Marketplace</h1>
+          <p class="text-slate-500 dark:text-slate-400">Find amazing deals from students near you</p>
+        </div>
+        <button onclick="openModal('post-listing')" class="btn-shine flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl font-semibold shadow-lg shadow-primary/25 hover:bg-blue-700 transition w-fit">
+          <i class="fa-solid fa-plus"></i> Post Listing
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-wrap gap-2 mb-8">
+      <button class="filter-btn active px-4 py-2 rounded-xl text-sm font-semibold bg-primary text-white" onclick="filterProducts(this,'all')">All</button>
+      <button class="filter-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary transition" onclick="filterProducts(this,'books')">📚 Books</button>
+      <button class="filter-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary transition" onclick="filterProducts(this,'electronics')">💻 Electronics</button>
+      <button class="filter-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary transition" onclick="filterProducts(this,'furniture')">🪑 Furniture</button>
+      <button class="filter-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary transition" onclick="filterProducts(this,'clothing')">👕 Clothing</button>
+    </div>
+
+    <!-- Search bar -->
+    <div class="relative mb-10">
+      <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+      <input type="text" placeholder="Search listings..." oninput="searchProducts(this.value)" class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+    </div>
+
+    <!-- Products grid -->
+    <div id="products-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--                  PAGE: SKILL HUB                      -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-skillhub" class="page">
+  <div class="pt-28 pb-20 px-4 sm:px-6 max-w-7xl mx-auto">
+    <div class="mb-4">
+      <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-4">
+        <button onclick="showPage('home')" class="hover:text-primary transition-colors">Home</button>
+        <span>/</span> <span class="text-slate-900 dark:text-white font-medium">Skill Hub</span>
+      </div>
+    </div>
+
+    <!-- Pricing toggle -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+      <div>
+        <h1 class="font-syne font-extrabold text-4xl sm:text-5xl mb-3">Skill Hub</h1>
+        <p class="text-slate-500 dark:text-slate-400 max-w-lg">Grow your skills with free and premium courses crafted for campus students.</p>
+      </div>
+      <div class="flex rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 w-fit">
+        <button id="tab-free" onclick="switchPlan('free')" class="px-6 py-3 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/10 transition">🆓 Free</button>
+        <button id="tab-pro" onclick="switchPlan('pro')" class="px-6 py-3 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-primary/10 transition">⭐ Pro</button>
+      </div>
+    </div>
+
+    <!-- Plan banner -->
+    <div id="plan-banner-free" class="rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 p-5 mb-8 flex items-center gap-4">
+      <i class="fa-solid fa-circle-check text-emerald-500 text-xl"></i>
+      <div>
+        <p class="font-semibold text-emerald-800 dark:text-emerald-300">Free Plan — No credit card needed</p>
+        <p class="text-sm text-emerald-600 dark:text-emerald-400">Access 80+ free courses. Upgrade anytime for full LMS features.</p>
+      </div>
+    </div>
+    <div id="plan-banner-pro" class="hidden rounded-2xl bg-gradient-to-r from-primary to-blue-700 p-5 mb-8 flex items-center gap-4">
+      <i class="fa-solid fa-crown text-accent text-xl"></i>
+      <div>
+        <p class="font-semibold text-white">Pro Plan — PKR 999/month</p>
+        <p class="text-sm text-blue-200">Unlock 240+ courses, live sessions, certificates & full LMS access.</p>
+      </div>
+      <button onclick="openModal('pro-checkout')" class="ml-auto btn-shine bg-white text-primary px-5 py-2 rounded-xl font-bold text-sm hover:bg-slate-100 transition">Upgrade Now</button>
+    </div>
+
+    <!-- Courses grid -->
+    <div id="courses-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </div>
+</div>
+
+<!-- LMS VIEWER (full page) -->
+<div id="page-lms" class="page">
+  <div class="flex h-screen pt-16">
+    <!-- Sidebar -->
+    <aside class="hidden md:flex flex-col w-72 border-r border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900 overflow-y-auto">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-700/60">
+        <button onclick="showPage('skillhub')" class="flex items-center gap-2 text-sm text-slate-500 hover:text-primary transition mb-3">
+          <i class="fa-solid fa-arrow-left text-xs"></i> Back to courses
+        </button>
+        <h2 class="font-syne font-bold text-lg" id="lms-course-title">Course Name</h2>
+        <div class="mt-3">
+          <div class="flex justify-between text-xs text-slate-500 mb-1"><span>Progress</span><span id="lms-prog-label">0%</span></div>
+          <div class="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div id="lms-prog-bar" class="h-full bg-primary rounded-full" style="width:0%;transition:width .6s"></div>
+          </div>
+        </div>
+      </div>
+      <nav class="flex-1 p-3">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Modules</p>
+        <div id="lms-sidebar"></div>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950">
+      <div class="max-w-3xl mx-auto px-4 sm:px-8 py-10">
+        <!-- Video placeholder -->
+        <div class="aspect-video bg-gradient-to-br from-primary to-blue-900 rounded-2xl flex items-center justify-center mb-8 relative overflow-hidden">
+          <div class="absolute inset-0 flex items-center justify-center">
+            <button class="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center backdrop-blur transition">
+              <i class="fa-solid fa-play text-white text-2xl ml-1"></i>
+            </button>
+          </div>
+          <span id="lms-lesson-title" class="absolute bottom-4 left-6 text-white font-semibold text-lg">Lesson Title</span>
+        </div>
+
+        <!-- Lesson content -->
+        <div id="lms-content" class="prose dark:prose-invert max-w-none">
+          <h2 class="font-syne font-bold text-2xl mb-4">Welcome to the course!</h2>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Select a lesson from the sidebar to get started. Each module builds on the previous one to give you a complete learning experience.</p>
+        </div>
+
+        <!-- Nav buttons -->
+        <div class="flex justify-between mt-10">
+          <button id="lms-prev" onclick="lmsNav(-1)" class="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            <i class="fa-solid fa-arrow-left"></i> Previous
+          </button>
+          <button id="lms-next" onclick="lmsNav(1)" class="btn-shine flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">
+            Next <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--                  PAGE: WHO WE ARE                     -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-whoweare" class="page">
+  <div class="pt-28 pb-20">
+    <!-- Hero -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center mb-20">
+      <div class="flex items-center gap-2 justify-center text-sm text-slate-500 dark:text-slate-400 mb-6">
+        <button onclick="showPage('home')" class="hover:text-primary transition-colors">Home</button>
+        <span>/</span> <span class="text-slate-900 dark:text-white font-medium">Who We Are</span>
+      </div>
+      <h1 class="font-syne font-extrabold text-4xl sm:text-5xl mb-6">Built for students,<br/><span class="text-primary">by students</span></h1>
+      <p class="text-slate-500 dark:text-slate-400 text-lg leading-relaxed">CampusXchange was born in a hostel room in Lahore, out of frustration with overpriced textbooks and zero learning resources. Today, we're Pakistan's fastest-growing campus ecosystem.</p>
+    </div>
+
+    <!-- Mission / Vision -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-8 mb-20">
+      <div class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary to-blue-800 p-10 noise">
+        <div class="blob1 absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
+        <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-6">
+          <i class="fa-solid fa-bullseye text-white text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-white text-2xl mb-4">Our Mission</h3>
+        <p class="text-blue-100 leading-relaxed">To empower every campus student with affordable resources and in-demand skills — removing financial barriers and creating a thriving peer economy across Pakistan.</p>
+      </div>
+      <div class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-10 noise">
+        <div class="blob2 absolute bottom-0 left-0 w-40 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
+        <div class="w-12 h-12 rounded-2xl bg-primary/30 flex items-center justify-center mb-6">
+          <i class="fa-solid fa-eye text-blue-300 text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-white text-2xl mb-4">Our Vision</h3>
+        <p class="text-slate-300 leading-relaxed">To become the definitive campus super-app for South Asia — where every student can buy, sell, learn, and connect in one seamless, trusted environment.</p>
+      </div>
+    </div>
+
+    <!-- Team -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 mb-20">
+      <div class="text-center mb-12">
+        <h2 class="font-syne font-extrabold text-3xl sm:text-4xl">Meet the founders</h2>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/50 card-hover">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30"><span class="text-white font-syne font-bold text-xl">AR</span></div>
+          <h4 class="font-syne font-bold text-lg">Ali Raza</h4>
+          <p class="text-primary text-sm font-semibold mb-3">CEO & Co-Founder</p>
+          <p class="text-slate-500 dark:text-slate-400 text-sm">Ex-LUMS CS grad passionate about EdTech and peer marketplaces.</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/50 card-hover">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-violet-500/30"><span class="text-white font-syne font-bold text-xl">SA</span></div>
+          <h4 class="font-syne font-bold text-lg">Sara Ahmad</h4>
+          <p class="text-violet-600 dark:text-violet-400 text-sm font-semibold mb-3">CTO & Co-Founder</p>
+          <p class="text-slate-500 dark:text-slate-400 text-sm">Full-stack engineer and NUST alumni building scalable campus tech.</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/50 card-hover sm:col-span-2 lg:col-span-1">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30"><span class="text-white font-syne font-bold text-xl">HK</span></div>
+          <h4 class="font-syne font-bold text-lg">Hassan Khan</h4>
+          <p class="text-emerald-600 dark:text-emerald-400 text-sm font-semibold mb-3">Head of Growth</p>
+          <p class="text-slate-500 dark:text-slate-400 text-sm">Marketing wizard who took CampusXchange from 0 to 12K users.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+      <h2 class="font-syne font-extrabold text-3xl text-center mb-10">Our Journey</h2>
+      <div class="space-y-8">
+        <div class="flex gap-5">
+          <div class="flex flex-col items-center"><div class="timeline-dot"></div><div class="flex-1 w-[2px] bg-slate-200 dark:bg-slate-700"></div></div>
+          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2022 — The Idea</p><h4 class="font-bold mb-1">Born in a Lahore hostel room</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Frustrated with expensive textbooks, Ali and Sara built the first prototype in a weekend.</p></div>
+        </div>
+        <div class="flex gap-5">
+          <div class="flex flex-col items-center"><div class="timeline-dot"></div><div class="flex-1 w-[2px] bg-slate-200 dark:bg-slate-700"></div></div>
+          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2023 — Launch</p><h4 class="font-bold mb-1">Public beta at 5 universities</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Within 3 months, over 2,000 students joined the platform with 800+ active listings.</p></div>
+        </div>
+        <div class="flex gap-5">
+          <div class="flex flex-col items-center"><div class="timeline-dot"></div><div class="flex-1 w-[2px] bg-slate-200 dark:bg-slate-700"></div></div>
+          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2024 — Skill Hub</p><h4 class="font-bold mb-1">Launched the learning platform</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Added 240+ courses and onboarded 60+ instructors. Pro plan launched.</p></div>
+        </div>
+        <div class="flex gap-5">
+          <div class="flex flex-col items-center"><div class="timeline-dot bg-accent"></div></div>
+          <div><p class="text-amber-500 font-semibold text-sm mb-1">2025 — Scale</p><h4 class="font-bold mb-1">12K+ students across Pakistan</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Expanding to 40+ universities. Seed funding secured. The journey continues.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--                  PAGE: SERVICES                       -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-services" class="page">
+  <div class="pt-28 pb-20 px-4 sm:px-6 max-w-7xl mx-auto">
+    <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-6">
+      <button onclick="showPage('home')" class="hover:text-primary transition-colors">Home</button>
+      <span>/</span><span class="text-slate-900 dark:text-white font-medium">Services</span>
+    </div>
+    <div class="text-center mb-16">
+      <h1 class="font-syne font-extrabold text-4xl sm:text-5xl mb-4">Our Services</h1>
+      <p class="text-slate-500 dark:text-slate-400 max-w-xl mx-auto">Everything you need, designed specifically for campus life.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-7 mb-20">
+      <!-- Service cards -->
+      <div class="card-hover group bg-white dark:bg-slate-800/60 rounded-2xl p-7 border border-slate-100 dark:border-slate-700/50 shadow-sm">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-store text-emerald-600 dark:text-emerald-400 text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-xl mb-3">Buy & Sell</h3>
+        <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">Post listings for books, gadgets, furniture, clothing and more. Verified student-to-student transactions with zero platform fee.</p>
+        <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 text-xs"></i> Verified student listings</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 text-xs"></i> Zero commission</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 text-xs"></i> Secure chat & meetup</li>
+        </ul>
+      </div>
+
+      <div class="card-hover group bg-white dark:bg-slate-800/60 rounded-2xl p-7 border border-slate-100 dark:border-slate-700/50 shadow-sm">
+        <div class="w-12 h-12 rounded-2xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-graduation-cap text-violet-600 dark:text-violet-400 text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-xl mb-3">Skill Learning</h3>
+        <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">Learn at your own pace with 240+ courses in tech, design, and business. Free and Pro plans available.</p>
+        <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-violet-500 text-xs"></i> 80+ free courses</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-violet-500 text-xs"></i> Pro certificates</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-violet-500 text-xs"></i> Live Q&A sessions</li>
+        </ul>
+      </div>
+
+      <div class="card-hover group bg-white dark:bg-slate-800/60 rounded-2xl p-7 border border-slate-100 dark:border-slate-700/50 shadow-sm">
+        <div class="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-users text-blue-600 dark:text-blue-400 text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-xl mb-3">Community Networking</h3>
+        <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">Connect with peers, form study groups, find mentors, and join campus events — all within CampusXchange.</p>
+        <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-xs"></i> Peer mentorship</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-xs"></i> Study groups</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-xs"></i> Campus events</li>
+        </ul>
+      </div>
+
+      <div class="card-hover group bg-white dark:bg-slate-800/60 rounded-2xl p-7 border border-slate-100 dark:border-slate-700/50 shadow-sm">
+        <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-briefcase text-amber-600 dark:text-amber-400 text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-xl mb-3">Freelance Board</h3>
+        <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">Post or find short-term freelance gigs — graphic design, content writing, coding help, tutoring and more.</p>
+        <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500 text-xs"></i> Student-only gigs</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500 text-xs"></i> Skill-match filters</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500 text-xs"></i> Verified payments</li>
+        </ul>
+      </div>
+
+      <div class="card-hover group bg-white dark:bg-slate-800/60 rounded-2xl p-7 border border-slate-100 dark:border-slate-700/50 shadow-sm">
+        <div class="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-shield-halved text-rose-600 dark:text-rose-400 text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-xl mb-3">Safe Exchange</h3>
+        <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">Every user is verified via university email. Report bad actors, and our team resolves disputes within 24 hours.</p>
+        <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-rose-500 text-xs"></i> University verification</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-rose-500 text-xs"></i> Dispute resolution</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-rose-500 text-xs"></i> 24h support</li>
+        </ul>
+      </div>
+
+      <div class="card-hover group bg-white dark:bg-slate-800/60 rounded-2xl p-7 border border-slate-100 dark:border-slate-700/50 shadow-sm">
+        <div class="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-bell text-teal-600 dark:text-teal-400 text-lg"></i>
+        </div>
+        <h3 class="font-syne font-bold text-xl mb-3">Smart Alerts</h3>
+        <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">Get notified when a product in your watchlist drops in price or a new course in your interest area goes live.</p>
+        <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-teal-500 text-xs"></i> Price drop alerts</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-teal-500 text-xs"></i> New course notify</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-teal-500 text-xs"></i> Wishlist tracking</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Pricing table -->
+    <div class="text-center mb-12">
+      <h2 class="font-syne font-extrabold text-3xl sm:text-4xl mb-3">Simple Pricing</h2>
+      <p class="text-slate-500 dark:text-slate-400">Start free. Upgrade when you're ready.</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-8 bg-white dark:bg-slate-800/60">
+        <h3 class="font-syne font-bold text-xl mb-1">Free</h3>
+        <p class="text-4xl font-syne font-extrabold mb-1">PKR 0</p>
+        <p class="text-slate-400 text-sm mb-6">Forever free</p>
+        <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300 mb-8">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Marketplace access</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> 80+ free courses</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Community access</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-xmark text-slate-300 dark:text-slate-600"></i> Certificates</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-xmark text-slate-300 dark:text-slate-600"></i> Live sessions</li>
+        </ul>
+        <button onclick="openModal('signup')" class="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition">Get Started</button>
+      </div>
+      <div class="rounded-2xl border-2 border-primary p-8 bg-primary/5 dark:bg-primary/10 relative overflow-hidden">
+        <div class="absolute top-4 right-4 badge bg-accent text-slate-900 text-[0.65rem]"><i class="fa-solid fa-crown"></i> Popular</div>
+        <h3 class="font-syne font-bold text-xl mb-1">Pro</h3>
+        <p class="text-4xl font-syne font-extrabold mb-1">PKR 999<span class="text-base font-normal text-slate-400">/mo</span></p>
+        <p class="text-slate-400 text-sm mb-6">Cancel anytime</p>
+        <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300 mb-8">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Everything in Free</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> 240+ courses</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Completion certificates</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Live Q&A sessions</li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Priority support</li>
+        </ul>
+        <button onclick="openModal('pro-checkout')" class="btn-shine w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/30">Upgrade to Pro</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--                    FOOTER                            -->
+<!-- ══════════════════════════════════════════════════════ -->
+<footer class="bg-slate-900 dark:bg-black text-slate-400 py-16 px-4 sm:px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+      <div>
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center"><span class="text-white font-syne font-bold text-xs">CX</span></div>
+          <span class="font-syne font-bold text-white text-lg">CampusXchange</span>
+        </div>
+        <p class="text-sm leading-relaxed mb-4">Exchange Smart, Live Smart. Pakistan's #1 campus peer marketplace and learning hub.</p>
+        <div class="flex gap-3">
+          <a href="#" class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors"><i class="fab fa-instagram text-sm"></i></a>
+          <a href="#" class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors"><i class="fab fa-twitter text-sm"></i></a>
+          <a href="#" class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors"><i class="fab fa-linkedin text-sm"></i></a>
+          <a href="#" class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors"><i class="fab fa-facebook text-sm"></i></a>
+        </div>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4">Platform</h4>
+        <ul class="space-y-2 text-sm">
+          <li><button onclick="showPage('home')" class="hover:text-white transition-colors">Home</button></li>
+          <li><button onclick="showPage('marketplace')" class="hover:text-white transition-colors">Marketplace</button></li>
+          <li><button onclick="showPage('skillhub')" class="hover:text-white transition-colors">Skill Hub</button></li>
+          <li><button onclick="showPage('services')" class="hover:text-white transition-colors">Services</button></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4">Company</h4>
+        <ul class="space-y-2 text-sm">
+          <li><button onclick="showPage('whoweare')" class="hover:text-white transition-colors">Who We Are</button></li>
+          <li><a href="#" class="hover:text-white transition-colors">Blog</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Careers</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4">Legal</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Terms of Service</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Cookie Policy</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Refund Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
+      <p>All Rights Reserved &copy; 2025 CampusXchange</p>
+      <p>Made with <span class="text-red-400">♥</span> for students, in Pakistan</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║                  MODAL SYSTEM                       ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<div id="modal-overlay" onclick="closeModalOnBg(event)">
+  <div id="modal-box" class="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto transition-all duration-300 scale-95 opacity-0">
+    <!-- content injected by JS -->
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║                  JAVASCRIPT                         ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<script>
+/* ═══════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════ */
+const products = [
+  { id:1, title:'Calculus Textbook (8th Ed)', price:'PKR 800', cat:'books', badge:'Books', icon:'📚', seller:'@ahmed_lums', condition:'Good' },
+  { id:2, title:'Dell XPS 13 Laptop', price:'PKR 85,000', cat:'electronics', badge:'Electronics', icon:'💻', seller:'@sara_nust', condition:'Like New' },
+  { id:3, title:'Study Desk & Chair Set', price:'PKR 6,500', cat:'furniture', badge:'Furniture', icon:'🪑', seller:'@hassan_iba', condition:'Fair' },
+  { id:4, title:'Physics by Halliday', price:'PKR 600', cat:'books', badge:'Books', icon:'📚', seller:'@zara_pu', condition:'Good' },
+  { id:5, title:'iPhone 12 — 128GB', price:'PKR 60,000', cat:'electronics', badge:'Electronics', icon:'📱', seller:'@omar_fast', condition:'Like New' },
+  { id:6, title:'University Hoodie (L)', price:'PKR 1,200', cat:'clothing', badge:'Clothing', icon:'👕', seller:'@ali_ucp', condition:'New' },
+  { id:7, title:'Engineering Drawing Set', price:'PKR 950', cat:'books', badge:'Books', icon:'📐', seller:'@m_uet', condition:'Good' },
+  { id:8, title:'Wireless Earbuds', price:'PKR 4,500', cat:'electronics', badge:'Electronics', icon:'🎧', seller:'@fatima_ku', condition:'Like New' },
+  { id:9, title:'Bookshelf (3-tier)', price:'PKR 3,000', cat:'furniture', badge:'Furniture', icon:'🗄️', seller:'@bilal_nca', condition:'Good' },
+  { id:10, title:'Lab Coat (M)', price:'PKR 700', cat:'clothing', badge:'Clothing', icon:'🥼', seller:'@aisha_dow', condition:'New' },
+  { id:11, title:'Organic Chemistry (Clayden)', price:'PKR 1,400', cat:'books', badge:'Books', icon:'📚', seller:'@usama_khi', condition:'Good' },
+  { id:12, title:'Mechanical Keyboard', price:'PKR 12,000', cat:'electronics', badge:'Electronics', icon:'⌨️', seller:'@raza_isb', condition:'Like New' },
+];
+
+const courses = [
+  { id:1, title:'Full-Stack Web Dev Bootcamp', instructor:'Sir Tariq Ahmed', level:'Beginner', lessons:32, rating:4.9, plan:'free', color:'from-blue-500 to-indigo-600', icon:'💻' },
+  { id:2, title:'UI/UX Design Masterclass', instructor:'Ms. Amna Siddiqui', level:'Intermediate', lessons:24, rating:4.8, plan:'free', color:'from-violet-500 to-purple-600', icon:'🎨' },
+  { id:3, title:'Python for Data Science', instructor:'Sir Kamran Ali', level:'Beginner', lessons:28, rating:4.7, plan:'free', color:'from-emerald-500 to-teal-600', icon:'🐍' },
+  { id:4, title:'Advanced Machine Learning', instructor:'Dr. Nadia Hassan', level:'Advanced', lessons:40, rating:4.9, plan:'pro', color:'from-rose-500 to-pink-600', icon:'🤖' },
+  { id:5, title:'Digital Marketing & SEO', instructor:'Mr. Asad Mehmood', level:'Beginner', lessons:20, rating:4.6, plan:'pro', color:'from-amber-500 to-orange-600', icon:'📈' },
+  { id:6, title:'React & Next.js Advanced', instructor:'Ms. Hira Baig', level:'Advanced', lessons:36, rating:4.8, plan:'pro', color:'from-cyan-500 to-blue-600', icon:'⚛️' },
+  { id:7, title:'Business English & Comm', instructor:'Ms. Sana Qureshi', level:'Beginner', lessons:16, rating:4.5, plan:'free', color:'from-teal-500 to-green-600', icon:'💼' },
+  { id:8, title:'Mobile App Dev (Flutter)', instructor:'Sir Fahad Raza', level:'Intermediate', lessons:44, rating:4.9, plan:'pro', color:'from-sky-500 to-blue-700', icon:'📱' },
+];
+
+const lmsModules = [
+  { title:'Introduction & Setup', lessons:['Welcome to the Course','Setting up your environment','Overview of the curriculum'] },
+  { title:'Core Fundamentals', lessons:['Variables & Data Types','Control Flow','Functions & Scope'] },
+  { title:'Intermediate Concepts', lessons:['Object-Oriented Programming','Error Handling','Working with APIs'] },
+  { title:'Advanced Topics', lessons:['Performance Optimization','Security Best Practices','Testing & Deployment'] },
+  { title:'Final Project', lessons:['Project Brief','Building the Project','Code Review & Submission'] },
+];
+
+let currentFilter = 'all';
+let currentPlan = 'free';
+let lmsCurrentLesson = 0;
+let lmsTotal = 0;
+let activeCourseTitle = '';
+
+/* ═══════════════════════════════════════════
+   NAVBAR SCROLL
+═══════════════════════════════════════════ */
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('navbar');
+  if (window.scrollY > 20) {
+    nav.classList.add('bg-white/90','dark:bg-slate-900/90','backdrop-blur-xl','shadow-sm','border-b','border-slate-200/50','dark:border-slate-700/50');
+  } else {
+    nav.classList.remove('bg-white/90','dark:bg-slate-900/90','backdrop-blur-xl','shadow-sm','border-b','border-slate-200/50','dark:border-slate-700/50');
+  }
+});
+
+/* ═══════════════════════════════════════════
+   PAGE SWITCHING
+═══════════════════════════════════════════ */
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const page = document.getElementById('page-' + name);
+  if (page) { page.classList.add('active'); window.scrollTo({top:0,behavior:'smooth'}); }
+  // update nav active state
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.dataset.page === name) { b.classList.add('text-primary','bg-primary/10'); b.classList.remove('text-slate-600','dark:text-slate-300'); }
+    else { b.classList.remove('text-primary','bg-primary/10'); }
+  });
+  // init page data
+  if (name === 'marketplace') renderProducts('all');
+  if (name === 'skillhub') { renderCourses(); switchPlan('free'); }
+}
+
+/* ═══════════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════════ */
+function toggleTheme() {
+  document.documentElement.classList.toggle('dark');
+  localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+}
+if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+  document.documentElement.classList.add('dark');
+}
+
+/* ═══════════════════════════════════════════
+   BURGER MENU
+═══════════════════════════════════════════ */
+let menuOpen = false;
+function toggleMenu() {
+  menuOpen = !menuOpen;
+  const menu = document.getElementById('mobile-menu');
+  const btn = document.getElementById('burger-btn');
+  menu.classList.toggle('open', menuOpen);
+  btn.classList.toggle('burger-open', menuOpen);
+  document.body.style.overflow = menuOpen ? 'hidden' : '';
+}
+
+/* ═══════════════════════════════════════════
+   PRODUCTS
+═══════════════════════════════════════════ */
+function renderProducts(filter, query='') {
+  const grid = document.getElementById('products-grid');
+  if (!grid) return;
+  let filtered = products.filter(p => (filter === 'all' || p.cat === filter) && (query === '' || p.title.toLowerCase().includes(query.toLowerCase())));
+  if (!filtered.length) { grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400"><i class="fa-solid fa-box-open text-4xl mb-4 block"></i>No listings found</div>'; return; }
+  grid.innerHTML = filtered.map(p => `
+    <div class="card-hover bg-white dark:bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col">
+      <div class="h-40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-6xl relative">
+        ${p.icon}
+        <span class="absolute top-3 right-3 chip text-[0.65rem]">${p.badge}</span>
+      </div>
+      <div class="p-5 flex flex-col flex-1">
+        <h3 class="font-semibold text-sm mb-1 line-clamp-2">${p.title}</h3>
+        <p class="text-xs text-slate-400 mb-3">${p.seller} · ${p.condition}</p>
+        <p class="font-syne font-bold text-primary text-lg mt-auto mb-4">${p.price}</p>
+        <div class="flex gap-2">
+          <button onclick="openModal('contact',${JSON.stringify(p).replace(/"/g,'&quot;')})" class="btn-shine flex-1 bg-primary text-white py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition text-center">Contact</button>
+          <button class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition text-slate-500">
+            <i class="fa-regular fa-heart text-sm"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterProducts(btn, cat) {
+  currentFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.remove('bg-primary','text-white');
+    b.classList.add('bg-slate-100','dark:bg-slate-800','text-slate-600','dark:text-slate-300');
+  });
+  btn.classList.add('bg-primary','text-white');
+  btn.classList.remove('bg-slate-100','dark:bg-slate-800','text-slate-600','dark:text-slate-300');
+  renderProducts(cat);
+}
+
+function searchProducts(q) { renderProducts(currentFilter, q); }
+
+/* ═══════════════════════════════════════════
+   COURSES
+═══════════════════════════════════════════ */
+function renderCourses() {
+  const grid = document.getElementById('courses-grid');
+  if (!grid) return;
+  const filtered = courses.filter(c => currentPlan === 'pro' ? true : c.plan === 'free');
+  grid.innerHTML = filtered.map(c => `
+    <div class="card-hover bg-white dark:bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col">
+      <div class="h-36 bg-gradient-to-br ${c.color} flex items-center justify-center text-5xl relative">
+        ${c.icon}
+        ${c.plan === 'pro' ? '<span class="absolute top-3 right-3 badge bg-accent text-slate-900 text-[0.6rem]"><i class="fa-solid fa-crown"></i> PRO</span>' : '<span class="absolute top-3 right-3 badge bg-emerald-500 text-white text-[0.6rem]">FREE</span>'}
+      </div>
+      <div class="p-5 flex flex-col flex-1">
+        <h3 class="font-semibold text-sm mb-1 line-clamp-2">${c.title}</h3>
+        <p class="text-xs text-slate-400 mb-2">${c.instructor}</p>
+        <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-4">
+          <span class="stars">★ ${c.rating}</span>
+          <span>· ${c.lessons} lessons</span>
+          <span class="chip">${c.level}</span>
+        </div>
+        <button onclick="launchLMS('${c.title.replace(/'/g,"\\'")}',${c.plan === 'pro' ? 'true' : 'false'})" class="btn-shine mt-auto w-full py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">
+          ${c.plan === 'pro' && currentPlan !== 'pro' ? '<i class="fa-solid fa-lock text-xs mr-1"></i> Upgrade to Enroll' : 'Enroll Now'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function switchPlan(plan) {
+  currentPlan = plan;
+  document.getElementById('tab-free').className = plan === 'free'
+    ? 'px-6 py-3 text-sm font-semibold bg-primary text-white transition'
+    : 'px-6 py-3 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/10 transition';
+  document.getElementById('tab-pro').className = plan === 'pro'
+    ? 'px-6 py-3 text-sm font-semibold bg-primary text-white transition'
+    : 'px-6 py-3 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-primary/10 transition';
+  document.getElementById('plan-banner-free').classList.toggle('hidden', plan !== 'free');
+  document.getElementById('plan-banner-pro').classList.toggle('hidden', plan !== 'pro');
+  renderCourses();
+}
+
+/* ═══════════════════════════════════════════
+   LMS
+═══════════════════════════════════════════ */
+function launchLMS(title, isPro) {
+  if (isPro && currentPlan !== 'pro') { openModal('pro-checkout'); return; }
+  activeCourseTitle = title;
+  lmsCurrentLesson = 0;
+  // build sidebar
+  document.getElementById('lms-course-title').textContent = title;
+  lmsTotal = lmsModules.reduce((a,m)=>a+m.lessons.length,0);
+  const sidebar = document.getElementById('lms-sidebar');
+  sidebar.innerHTML = '';
+  let globalIdx = 0;
+  lmsModules.forEach((mod, mi) => {
+    const modDiv = document.createElement('div');
+    modDiv.className = 'mb-4';
+    modDiv.innerHTML = `<p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mb-1">${mod.title}</p>`;
+    mod.lessons.forEach((lesson, li) => {
+      const idx = globalIdx++;
+      const btn = document.createElement('button');
+      btn.className = `lms-item w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-primary/10 transition flex items-center gap-2 ${idx===0?'active':''}`;
+      btn.dataset.idx = idx;
+      btn.innerHTML = `<i class="fa-solid fa-circle-play text-primary text-xs"></i> ${lesson}`;
+      btn.onclick = () => lmsGoTo(idx);
+      modDiv.appendChild(btn);
+    });
+    sidebar.appendChild(modDiv);
+  });
+  lmsGoTo(0);
+  showPage('lms');
+}
+
+function lmsGoTo(idx) {
+  lmsCurrentLesson = idx;
+  // flatten lessons
+  const flat = lmsModules.flatMap(m => m.lessons);
+  document.getElementById('lms-lesson-title').textContent = flat[idx] || '';
+  document.getElementById('lms-content').innerHTML = `
+    <h2 class="font-syne font-bold text-2xl mb-4">${flat[idx]}</h2>
+    <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">Welcome to this lesson on <strong>${flat[idx]}</strong>. In this session you'll gain a deep understanding of the concept, see real-world examples, and complete a short exercise.</p>
+    <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Follow along with the video above, take notes, and feel free to rewatch any section. When you're ready, hit <strong>Next</strong> to proceed.</p>
+  `;
+  // update active sidebar
+  document.querySelectorAll('.lms-item').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.idx) === idx);
+  });
+  // update progress
+  const pct = Math.round(((idx+1)/lmsTotal)*100);
+  document.getElementById('lms-prog-bar').style.width = pct + '%';
+  document.getElementById('lms-prog-label').textContent = pct + '%';
+  document.getElementById('lms-prev').disabled = idx === 0;
+  document.getElementById('lms-next').disabled = idx === lmsTotal - 1;
+}
+
+function lmsNav(dir) {
+  const next = lmsCurrentLesson + dir;
+  if (next >= 0 && next < lmsTotal) lmsGoTo(next);
+}
+
+/* ═══════════════════════════════════════════
+   MODAL SYSTEM
+═══════════════════════════════════════════ */
+const TERMS = `<div class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed space-y-3 max-h-40 overflow-y-auto pr-2 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs">
+  <p><strong class="text-slate-700 dark:text-slate-300">1. Acceptance of Terms</strong><br/>By creating an account on CampusXchange, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree, please do not use the platform.</p>
+  <p><strong class="text-slate-700 dark:text-slate-300">2. Eligibility</strong><br/>You must be a currently enrolled student at an accredited institution in Pakistan and be at least 18 years old (or have guardian consent) to use this platform.</p>
+  <p><strong class="text-slate-700 dark:text-slate-300">3. User Conduct</strong><br/>Users agree to list only legitimate, lawfully owned items. Fraudulent listings, harassment, or misuse of the platform will result in permanent account suspension.</p>
+  <p><strong class="text-slate-700 dark:text-slate-300">4. Privacy Policy</strong><br/>Your personal data is collected and used in accordance with our Privacy Policy. We do not sell your data to third parties. University email verification is mandatory for account creation.</p>
+  <p><strong class="text-slate-700 dark:text-slate-300">5. Intellectual Property</strong><br/>All course content on Skill Hub is protected by copyright. Pro plan content may not be shared, redistributed, or resold under any circumstances.</p>
+  <p><strong class="text-slate-700 dark:text-slate-300">6. Limitation of Liability</strong><br/>CampusXchange acts as a marketplace facilitator. We are not liable for disputes between buyers and sellers, though we provide mediation services for registered users.</p>
+  <p><strong class="text-slate-700 dark:text-slate-300">7. Changes to Terms</strong><br/>We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the new terms.</p>
+</div>`;
+
+function openModal(type, data) {
+  const overlay = document.getElementById('modal-overlay');
+  const box = document.getElementById('modal-box');
+  let html = '';
+
+  if (type === 'login') {
+    html = `
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="font-syne font-bold text-2xl">Welcome back</h2>
+            <p class="text-slate-400 text-sm mt-1">Sign in to your account</p>
+          </div>
+          <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">University Email</label>
+            <input type="email" placeholder="you@university.edu.pk" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Password</label>
+            <div class="relative">
+              <input id="pwd-login" type="password" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition pr-11" />
+              <button onclick="togglePwd('pwd-login')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-eye text-sm"></i></button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <label class="flex items-center gap-2 text-slate-500 cursor-pointer"><input type="checkbox" class="rounded"/> Remember me</label>
+            <a href="#" class="text-primary hover:underline font-semibold">Forgot password?</a>
+          </div>
+          <button onclick="fakeLogin()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Sign In</button>
+        </div>
+        <div class="relative my-6"><div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200 dark:border-slate-700"></div></div><div class="relative flex justify-center"><span class="bg-white dark:bg-slate-900 px-3 text-xs text-slate-400">or continue with</span></div></div>
+        <button class="w-full border border-slate-200 dark:border-slate-700 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+          <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 32.8 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.6 29.3 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5C35.3 45.5 44 36.8 44 25.5c0-1.9-.2-3.7-.4-5.5z"/><path fill="#FF3D00" d="M6.3 15.1l6.6 4.8C14.5 16.1 19 13 24 13c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.6 29.3 4.5 24 4.5c-7.7 0-14.4 4.4-17.7 10.6z"/><path fill="#4CAF50" d="M24 45.5c5.2 0 9.9-1.9 13.4-5l-6.2-5.2C29.3 37 26.7 38 24 38c-5.1 0-9.5-3.1-11.3-7.6l-6.5 5C9.7 41.3 16.4 45.5 24 45.5z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.6-2.6 4.8-4.9 6.2l6.2 5.2c3.6-3.3 5.9-8.2 5.9-13.9 0-1.9-.2-3.7-.4-5.5z"/></svg>
+          Continue with Google
+        </button>
+        <p class="text-center text-sm text-slate-400 mt-6">Don't have an account? <button onclick="openModal('signup')" class="text-primary font-semibold hover:underline">Sign Up</button></p>
+      </div>`;
+  }
+
+  else if (type === 'signup') {
+    html = `
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="font-syne font-bold text-2xl">Create account</h2>
+            <p class="text-slate-400 text-sm mt-1">Join 12,000+ students today</p>
+          </div>
+          <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">First Name</label>
+              <input type="text" placeholder="Ali" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            </div>
+            <div>
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Last Name</label>
+              <input type="text" placeholder="Raza" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">University Email</label>
+            <input type="email" placeholder="you@university.edu.pk" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">University</label>
+            <select class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition">
+              <option>Select your university</option>
+              <option>LUMS, Lahore</option>
+              <option>NUST, Islamabad</option>
+              <option>IBA, Karachi</option>
+              <option>FAST-NUCES</option>
+              <option>UET Lahore</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Password</label>
+            <div class="relative">
+              <input id="pwd-signup" type="password" placeholder="Min. 8 characters" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition pr-11" />
+              <button onclick="togglePwd('pwd-signup')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-eye text-sm"></i></button>
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">Terms & Conditions</label>
+            ${TERMS}
+            <label class="flex items-start gap-3 mt-3 cursor-pointer">
+              <input type="checkbox" id="terms-check" class="mt-0.5 rounded border-slate-300" />
+              <span class="text-xs text-slate-500">I have read and agree to the <strong class="text-slate-700 dark:text-slate-300">Terms of Service</strong>, <strong class="text-slate-700 dark:text-slate-300">Privacy Policy</strong>, and <strong class="text-slate-700 dark:text-slate-300">Community Guidelines</strong>.</span>
+            </label>
+          </div>
+          <button onclick="fakeSignup()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Create Account</button>
+        </div>
+        <p class="text-center text-sm text-slate-400 mt-4">Already have an account? <button onclick="openModal('login')" class="text-primary font-semibold hover:underline">Sign In</button></p>
+      </div>`;
+  }
+
+  else if (type === 'pro-checkout') {
+    html = `
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="font-syne font-bold text-2xl">Upgrade to Pro</h2>
+          <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="bg-gradient-to-br from-primary to-blue-700 rounded-2xl p-5 mb-6">
+          <div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-crown text-accent"></i><span class="text-white font-bold">Pro Plan</span></div>
+          <p class="text-3xl font-syne font-extrabold text-white mb-1">PKR 999<span class="text-base font-normal text-blue-200">/month</span></p>
+          <p class="text-blue-200 text-sm">240+ courses · Certificates · Live Sessions</p>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Card Number</label>
+            <input type="text" placeholder="1234 5678 9012 3456" maxlength="19" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Expiry</label>
+              <input type="text" placeholder="MM/YY" maxlength="5" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            </div>
+            <div>
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">CVV</label>
+              <input type="text" placeholder="•••" maxlength="4" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            </div>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
+            <i class="fa-solid fa-lock text-emerald-500"></i>
+            Secured with 256-bit SSL encryption. Cancel anytime.
+          </div>
+          <button onclick="fakePurchase()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">
+            Pay PKR 999 / month
+          </button>
+        </div>
+      </div>`;
+  }
+
+  else if (type === 'contact') {
+    html = `
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="font-syne font-bold text-xl">Contact Seller</h2>
+          <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 mb-5">
+          <p class="font-semibold text-sm">${data ? data.title : 'Item'}</p>
+          <p class="text-primary font-bold">${data ? data.price : ''}</p>
+          <p class="text-xs text-slate-400 mt-1">Sold by ${data ? data.seller : ''}</p>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Your Message</label>
+            <textarea rows="4" placeholder="Hi! I'm interested in this item. Is it still available?" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition resize-none"></textarea>
+          </div>
+          <button onclick="fakeMessage()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">Send Message</button>
+        </div>
+      </div>`;
+  }
+
+  else if (type === 'post-listing') {
+    html = `
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="font-syne font-bold text-2xl">Post a Listing</h2>
+          <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Title</label>
+            <input type="text" placeholder="e.g. Calculus Textbook — 8th Edition" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Category</label>
+              <select class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition">
+                <option>Books</option><option>Electronics</option><option>Furniture</option><option>Clothing</option><option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Price (PKR)</label>
+              <input type="number" placeholder="800" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Condition</label>
+            <div class="flex gap-2">
+              <button class="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-900/20 transition">New</button>
+              <button class="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-900/20 transition">Like New</button>
+              <button class="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-amber-50 hover:border-amber-300 dark:hover:bg-amber-900/20 transition">Good</button>
+              <button class="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-rose-50 hover:border-rose-300 dark:hover:bg-rose-900/20 transition">Fair</button>
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Description</label>
+            <textarea rows="3" placeholder="Describe your item, include any flaws or extras..." class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition resize-none"></textarea>
+          </div>
+          <button onclick="fakePost()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Post Listing</button>
+        </div>
+      </div>`;
+  }
+
+  box.innerHTML = html;
+  overlay.classList.add('open');
+  requestAnimationFrame(() => { box.classList.remove('scale-95','opacity-0'); box.classList.add('scale-100','opacity-100'); });
+}
+
+function closeModal() {
+  const overlay = document.getElementById('modal-overlay');
+  const box = document.getElementById('modal-box');
+  box.classList.add('scale-95','opacity-0'); box.classList.remove('scale-100','opacity-100');
+  setTimeout(() => overlay.classList.remove('open'), 250);
+}
+
+function closeModalOnBg(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+
+function togglePwd(id) {
+  const f = document.getElementById(id);
+  f.type = f.type === 'password' ? 'text' : 'password';
+}
+
+function fakeLogin() { closeModal(); showToast('🎉 Welcome back! You\'re now logged in.', 'success'); }
+
+function fakeSignup() {
+  const tc = document.getElementById('terms-check');
+  if (!tc || !tc.checked) { showToast('⚠️ Please accept the Terms & Conditions to continue.', 'warning'); return; }
+  closeModal(); showToast('🎉 Account created! Check your university email to verify.', 'success');
+}
+
+function fakePurchase() {
+  currentPlan = 'pro';
+  closeModal();
+  showToast('⭐ Pro plan activated! Enjoy 240+ courses.', 'success');
+  renderCourses();
+  switchPlan('pro');
+}
+
+function fakeMessage() { closeModal(); showToast('💬 Message sent to seller!', 'success'); }
+function fakePost() { closeModal(); showToast('✅ Listing posted! It will be live after verification.', 'success'); }
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+function showToast(msg, type='success') {
+  const colors = { success:'bg-emerald-600', warning:'bg-amber-500', error:'bg-rose-600' };
+  const t = document.createElement('div');
+  t.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-[99999] ${colors[type]} text-white px-6 py-3 rounded-2xl shadow-xl text-sm font-semibold flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-4`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => { t.classList.remove('opacity-0','translate-y-4'); });
+  setTimeout(() => { t.classList.add('opacity-0','translate-y-4'); setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  showPage('home');
+  // scroll navbar effect on load
+  if (window.scrollY > 20) {
+    document.getElementById('navbar').classList.add('bg-white/90','dark:bg-slate-900/90','backdrop-blur-xl','shadow-sm');
+  }
+});
+</script>
+</body>
+</html>
