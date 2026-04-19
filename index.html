@@ -176,6 +176,577 @@
   </style>
 </head>
 
+<script type="module">
+
+// 🔥 IMPORT FIREBASE
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, addDoc, collection, getDocs, deleteDoc, doc, serverTimestamp, onSnapshot, query, orderBy, where, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+const ADMIN_EMAIL = "fariyaghul@gmail.com";
+
+// 🔑 Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyBUg_KUE3J0TcMMOzEngbq6IEDdWiV9f98",
+  authDomain: "campusxchange-67eec.firebaseapp.com",
+  projectId: "campusxchange-67eec",
+  storageBucket: "campusxchange-67eec.firebasestorage.app",
+  messagingSenderId: "826357922468",
+  appId: "1:826357922468:web:bf62a23d5b0fcd1a218431",
+  measurementId: "G-4B2WQ80CGK"
+};
+
+// 🚀 INIT
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const auth = getAuth();
+const db = getFirestore();
+const storage = getStorage();
+let currentUser = null;
+window.currentUser = null;
+window.ADMIN_EMAIL = ADMIN_EMAIL;
+window.firebaseSignOut = async () => {
+  await signOut(auth);
+};
+
+window.firebaseGetUserProfile = async function (uid) {
+  if (!uid) return { isPro: false };
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) return { isPro: false };
+  return snap.data();
+};
+
+window.firebaseUpgradePro = async function (uid) {
+  if (!uid) throw new Error("User not found");
+  await setDoc(doc(db, "users", uid), { isPro: true }, { merge: true });
+};
+
+async function ensureUserRecord(user) {
+  if (!user?.uid) return;
+  await setDoc(doc(db, "users", user.uid), {
+    email: user.email || "",
+    isPro: false,
+    updated_at: serverTimestamp()
+  }, { merge: true });
+}
+
+function getInitialsFromEmail(email) {
+  const local = (email || "").split("@")[0] || "user";
+  const initials = local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0].toUpperCase())
+    .join("");
+  return initials || "U";
+}
+
+function isAdminUser(user) {
+  return !!user?.email && user.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+}
+
+function renderUserInfo(user) {
+  const userBox = document.getElementById("profileUserCard");
+  if (!userBox) return;
+
+  if (!user) {
+    userBox.innerHTML = '<span class="text-slate-500">Not logged in. Please sign in from the navbar.</span>';
+    return;
+  }
+
+  const initials = getInitialsFromEmail(user.email);
+  const adminChip = isAdminUser(user)
+    ? '<span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">ADMIN</span>'
+    : '';
+
+  userBox.innerHTML = `
+    <div class="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+      <div class="w-8 h-8 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">${initials}</div>
+      <div class="text-sm text-slate-700 dark:text-slate-200">
+        Logged in as: <span class="font-semibold">${user.email}</span>${adminChip}
+      </div>
+    </div>
+  `;
+}
+
+// 🔐 SIGN UP
+window.signup = async (emailArg, passwordArg) => {
+  const email = (emailArg || "").trim();
+  const password = passwordArg || "";
+
+  if (!email || !password) {
+    throw new Error("Email and password are required.");
+  }
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, "users", cred.user.uid), {
+      email: cred.user.email || email,
+      isPro: false,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp()
+    }, { merge: true });
+    return cred;
+  } catch (err) {
+    throw err;
+  }
+};
+
+// 🔐 LOGIN
+window.login = async (emailArg, passwordArg) => {
+  const email = (emailArg || "").trim();
+  const password = passwordArg || "";
+
+  if (!email || !password) {
+    throw new Error("Email and password are required.");
+  }
+
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    return cred;
+  } catch (err) {
+    throw err;
+  }
+};
+
+// 💾 REMEMBER LOGIN (AUTO)
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  window.currentUser = user;
+  const adminPanel = document.getElementById("adminPanel");
+  const loginBtn = document.getElementById("auth-login-btn");
+  const avatarWrap = document.getElementById("auth-avatar-wrap");
+  const mobileAuthBtn = document.getElementById("mobile-auth-btn");
+
+  renderUserInfo(user);
+
+  // Enforce a single source of truth for auth controls.
+  if (loginBtn && avatarWrap) {
+    if (user) {
+      loginBtn.classList.add("hidden");
+      loginBtn.style.display = "none";
+      avatarWrap.classList.remove("hidden");
+      avatarWrap.style.display = "block";
+    } else {
+      loginBtn.classList.remove("hidden");
+      loginBtn.style.display = "";
+      avatarWrap.classList.add("hidden");
+      avatarWrap.style.display = "none";
+    }
+  }
+
+  if (mobileAuthBtn) {
+    if (user) {
+      mobileAuthBtn.innerHTML = '<i class="fa-regular fa-user"></i> My Profile';
+      mobileAuthBtn.setAttribute("onclick", "showPage('profile');toggleMenu()");
+    } else {
+      mobileAuthBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login';
+      mobileAuthBtn.setAttribute("onclick", "openModal('login');toggleMenu()");
+    }
+  }
+
+  if (typeof window.updateNavForUser === "function") {
+    window.updateNavForUser(user);
+  }
+
+  if (adminPanel) {
+    adminPanel.style.display = isAdminUser(user) ? "block" : "none";
+  }
+
+  if (isAdminUser(user)) {
+    if (typeof window.loadAdminPanel === "function") {
+      window.loadAdminPanel();
+    }
+  }
+
+  if (typeof window.loadListings === "function") {
+    window.loadListings();
+  }
+
+  if (user) {
+    ensureUserRecord(user).catch(() => {});
+  }
+});
+
+// 📦 UPLOAD LISTING
+window.uploadListing = async () => {
+
+  // Let UI update first (prevents freeze)
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  const title = document.getElementById("title").value;
+  const price = document.getElementById("price").value;
+  const image = document.getElementById("image").value;
+
+  if (!window.currentUser) {
+    if (typeof window.showToast === "function") {
+      window.showToast("Please login first.", "warning");
+    } else {
+      alert("Please login first.");
+    }
+    return;
+  }
+
+  if (!title || !price || !image) {
+    alert("Fill all fields");
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "listings"), {
+      title,
+      price,
+      image,
+      userId: window.currentUser?.uid || "",
+      status: "pending",
+      category: "other",
+      condition: "Good",
+      created_at: serverTimestamp()
+    });
+
+    if (typeof window.showToast === "function") {
+      window.showToast("Listing submitted for admin approval.", "success");
+    } else {
+      alert("Uploaded!");
+    }
+    loadListings();
+    if (typeof window.loadAdminPanel === "function") {
+      window.loadAdminPanel();
+    }
+
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+window.firebaseListListings = async function () {
+  const q = query(collection(db, "listings"), where("status", "==", "approved"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
+
+window.firebaseAddListing = async function (payload) {
+  await addDoc(collection(db, "listings"), {
+    ...payload,
+    userId: payload?.userId || payload?.user_id || "",
+    status: "pending",
+    created_at: serverTimestamp()
+  });
+};
+
+window.firebaseListMyListings = async function (uid) {
+  if (!uid) return [];
+  const snapshot = await getDocs(collection(db, "listings"));
+  return snapshot.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((item) => (item.userId || item.user_id) === uid);
+};
+
+// 📥 LOAD LISTINGS
+window.loadListings = async () => {
+
+  const querySnapshot = await getDocs(collection(db, "listings"));
+  const container = document.getElementById("listings");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (!window.currentUser) {
+    container.innerHTML = '<div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">Login to manage your listings and see their moderation status.</div>';
+    return;
+  }
+
+  const myListings = querySnapshot.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((item) => (item.userId || item.user_id) === window.currentUser.uid)
+    .sort((a, b) => {
+      const sa = a.created_at?.seconds || 0;
+      const sb = b.created_at?.seconds || 0;
+      return sb - sa;
+    })
+    .slice(0, 6);
+
+  if (!myListings.length) {
+    container.innerHTML = '<div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">No listings yet. Post your first listing above.</div>';
+    return;
+  }
+
+  myListings.forEach((item) => {
+    const safeTitle = item.title || "Untitled Listing";
+    const safePrice = item.price || "Price not set";
+    const safeImage = item.image || "https://via.placeholder.com/300";
+    const status = item.status || "pending";
+    const statusClass = status === "approved"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : "text-amber-600 dark:text-amber-300";
+
+    container.innerHTML += `
+      <div class="bg-white dark:bg-slate-800/60 rounded-xl shadow p-4 flex flex-col gap-3 border border-slate-100 dark:border-slate-700/50">
+        <img src="${safeImage}" onerror="this.src='https://via.placeholder.com/300'" class="h-40 w-full object-cover rounded">
+        <div class="min-w-0">
+          <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">${safeTitle}</h3>
+          <p class="text-blue-600 font-semibold text-sm">${safePrice}</p>
+          <p class="text-xs ${statusClass}">${status}</p>
+        </div>
+      </div>
+    `;
+  });
+};
+
+window.loadAdminPanel = function () {
+  if (typeof window.loadAdminListings === "function") {
+    return window.loadAdminListings();
+  }
+};
+
+window.adminListingFilter = "pending";
+
+window.setAdminFilter = function (filter) {
+  window.adminListingFilter = filter === "approved" ? "approved" : "pending";
+  if (typeof window.loadAdminListings === "function") {
+    window.loadAdminListings();
+  }
+};
+
+window.loadAdminListings = async function () {
+  if (!isAdminUser(window.currentUser)) return;
+
+  const container = document.getElementById("adminListings");
+  if (!container) return;
+  const totalEl = document.getElementById("adminTotalCount");
+  const pendingEl = document.getElementById("adminPendingCount");
+  const approvedEl = document.getElementById("adminApprovedCount");
+  const pendingTab = document.getElementById("adminFilterPending");
+  const approvedTab = document.getElementById("adminFilterApproved");
+
+  const allSnapshot = await getDocs(collection(db, "listings"));
+  const allListings = allSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const pendingListings = allListings.filter((item) => (item.status || "pending") === "pending");
+  const approvedListings = allListings.filter((item) => item.status === "approved");
+
+  if (totalEl) totalEl.textContent = String(allListings.length);
+  if (pendingEl) pendingEl.textContent = String(pendingListings.length);
+  if (approvedEl) approvedEl.textContent = String(approvedListings.length);
+
+  const isApprovedView = window.adminListingFilter === "approved";
+
+  if (pendingTab) {
+    pendingTab.className = isApprovedView
+      ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition'
+      : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+  }
+  if (approvedTab) {
+    approvedTab.className = isApprovedView
+      ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+      : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition';
+  }
+
+  const viewListings = isApprovedView ? approvedListings : pendingListings;
+
+  container.innerHTML = "";
+
+  if (!viewListings.length) {
+    const emptyMsg = isApprovedView
+      ? "No approved listings yet."
+      : "No pending listings. Everything is moderated.";
+    container.innerHTML = `<div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">${emptyMsg}</div>`;
+    return;
+  }
+
+  viewListings.forEach((item) => {
+    const id = item.id;
+    const safeImage = item.image || "https://via.placeholder.com/300";
+    const safeTitle = item.title || "Untitled Listing";
+    const safePrice = item.price || "Price not set";
+    const sellerId = item.userId || item.user_id || "Unknown";
+    const status = item.status || "pending";
+    const statusChip = status === "approved"
+      ? '<span class="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Approved</span>'
+      : '<span class="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</span>';
+
+    const actions = status === "pending"
+      ? `<button onclick="approveListing('${id}')" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-green-700 transition">Approve</button>
+         <button onclick="rejectListing('${id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-rose-700 transition">Reject</button>`
+      : `<button onclick="rejectListing('${id}')" class="bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-800 transition">Remove</button>`;
+
+    container.innerHTML += `
+      <div class="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+        <img src="${safeImage}" onerror="this.src='https://via.placeholder.com/300'" class="h-32 w-full object-cover rounded mb-2">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <h3 class="font-bold text-slate-900 dark:text-slate-100">${safeTitle}</h3>
+          ${statusChip}
+        </div>
+        <p class="text-blue-600 font-semibold mb-1">${safePrice}</p>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">Seller: ${sellerId}</p>
+        <div class="flex gap-2">
+          ${actions}
+        </div>
+      </div>
+    `;
+  });
+};
+
+window.approveListing = async function (id) {
+  if (!isAdminUser(window.currentUser)) {
+    if (typeof window.showToast === "function") {
+      window.showToast("Admin access only.", "warning");
+    } else {
+      alert("Admin access only.");
+    }
+    return;
+  }
+  await updateDoc(doc(db, "listings", id), {
+    status: "approved",
+    approved_at: serverTimestamp()
+  });
+  loadAdminListings();
+  if (typeof window.renderProducts === "function") {
+    window.renderProducts("all");
+  }
+};
+
+window.rejectListing = async function (id) {
+  if (!isAdminUser(window.currentUser)) {
+    if (typeof window.showToast === "function") {
+      window.showToast("Admin access only.", "warning");
+    } else {
+      alert("Admin access only.");
+    }
+    return;
+  }
+  await deleteDoc(doc(db, "listings", id));
+  loadAdminListings();
+};
+
+window.deleteListing = async function (id) {
+  return window.rejectListing(id);
+};
+
+window.startChat = async function (listingId, sellerId) {
+  if (!window.currentUser) {
+    if (typeof window.showToast === "function") {
+      window.showToast("Please login first.", "warning");
+    } else {
+      alert("Please login first.");
+    }
+    return;
+  }
+
+  const buyerId = window.currentUser.uid;
+  if (!sellerId || sellerId === buyerId) {
+    if (typeof window.showToast === "function") {
+      window.showToast("Cannot start chat for this listing.", "warning");
+    } else {
+      alert("Cannot start chat for this listing.");
+    }
+    return;
+  }
+
+  const pair = [buyerId, sellerId].sort();
+  const chatId = `${pair[0]}_${pair[1]}`;
+
+  await setDoc(doc(db, "chats", chatId), {
+    users: pair,
+    listingId,
+    updated_at: serverTimestamp()
+  }, { merge: true });
+
+  localStorage.setItem("chatId", chatId);
+
+  const chatTitle = document.getElementById("chatStatus");
+  if (chatTitle) {
+    chatTitle.textContent = "Chat Active";
+  }
+
+  if (typeof window.loadChat === "function") {
+    window.loadChat();
+  }
+};
+
+window.sendMessage = async function () {
+
+  const text = document.getElementById("messageInput").value;
+  const chatId = localStorage.getItem("chatId");
+
+  if (!text || !window.currentUser || !chatId) {
+    if (!chatId) {
+      if (typeof window.showToast === "function") {
+        window.showToast("Start chat from a listing first.", "warning");
+      } else {
+        alert("Start chat from a listing first.");
+      }
+    }
+    return;
+  }
+
+  await addDoc(collection(db, "messages"), {
+    chatId,
+    text: text,
+    sender: window.currentUser.uid,
+    senderEmail: window.currentUser.email,
+    time: serverTimestamp()
+  });
+
+  if (typeof window.logUserActivity === "function") {
+    window.logUserActivity("Sent a chat message");
+  }
+
+  document.getElementById("messageInput").value = "";
+};
+
+window.loadChat = function () {
+
+  if (typeof window.chatUnsubscribe === 'function') {
+    window.chatUnsubscribe();
+    window.chatUnsubscribe = null;
+  }
+
+  const chatId = localStorage.getItem("chatId");
+  const container = document.getElementById("chatBox");
+  if (!container) return;
+
+  if (!chatId) {
+    container.innerHTML = '<div class="text-sm text-slate-500">Open any listing and click Contact Seller to start private chat.</div>';
+    return;
+  }
+
+  const q = query(collection(db, "messages"), where("chatId", "==", chatId), orderBy("time"));
+
+  window.chatUnsubscribe = onSnapshot(q, (snapshot) => {
+
+    container.innerHTML = "";
+
+    if (snapshot.empty) {
+      container.innerHTML = '<div class="text-sm text-slate-500">No messages yet. Say hello!</div>';
+      return;
+    }
+
+    snapshot.forEach((doc) => {
+      const msg = doc.data();
+      const senderLabel = msg.sender === window.currentUser?.uid ? "You" : "Them";
+
+      container.innerHTML += `
+        <div class="mb-2 text-sm text-slate-700 dark:text-slate-200">
+          <strong class="font-semibold">${senderLabel}</strong>: ${msg.text}
+        </div>
+      `;
+    });
+
+  });
+};
+
+window.onload = () => {
+  loadListings();
+  loadChat();
+};
+
+// AUTO LOAD
+
+</script>
+
+
 <body class="bg-white dark:bg-[#060D1F] text-slate-900 dark:text-slate-100 transition-colors duration-300">
 
 <!-- ╔══════════════════════════════════════════════════════╗ -->
@@ -209,10 +780,26 @@
           <i class="fa-solid fa-sun text-amber-400 hidden dark:block"></i>
           <i class="fa-solid fa-moon text-slate-600 dark:hidden"></i>
         </button>
-        <!-- Login btn -->
-        <button onclick="openModal('login')" class="hidden md:flex btn-shine items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-primary/25 hover:bg-blue-700 transition-all duration-200">
+
+        <button id="auth-login-btn" onclick="openModal('login')" class="hidden md:flex btn-shine items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-primary/25 hover:bg-blue-700 transition-all duration-200">
           <i class="fa-solid fa-right-to-bracket text-xs"></i> Login
         </button>
+
+        <div id="auth-avatar-wrap" class="hidden relative">
+          <button id="auth-avatar-btn" onclick="toggleUserDropdown(event)" class="w-10 h-10 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center shadow-lg shadow-primary/25">U</button>
+          <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-52 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl p-2">
+            <button onclick="goProfileFromDropdown()" class="w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-2">
+              <i class="fa-regular fa-user"></i> Profile
+            </button>
+            <button id="dropdown-upgrade" onclick="openModal('pro-checkout');closeUserDropdown()" class="w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-2">
+              <i class="fa-solid fa-crown text-amber-500"></i> Upgrade to Pro
+            </button>
+            <button onclick="logoutUserFromDropdown()" class="w-full text-left px-3 py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition flex items-center gap-2">
+              <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </button>
+          </div>
+        </div>
+
         <!-- Burger -->
         <button id="burger-btn" onclick="toggleMenu()" class="md:hidden w-10 h-10 flex flex-col items-center justify-center gap-[6px]" aria-label="Menu">
           <span class="burger-line h-[2px] w-6 bg-current rounded-full block"></span>
@@ -271,8 +858,8 @@
 
     <!-- Bottom CTA -->
     <div class="space-y-3 mt-8">
-      <button onclick="openModal('login');toggleMenu()" class="btn-shine w-full bg-primary text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:bg-blue-700 transition">
-        <i class="fa-solid fa-right-to-bracket"></i> Login / Sign Up
+      <button id="mobile-auth-btn" onclick="openModal('login');toggleMenu()" class="btn-shine w-full bg-primary text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:bg-blue-700 transition">
+        <i class="fa-solid fa-right-to-bracket"></i> Login
       </button>
       <p class="text-center text-slate-500 text-xs">By continuing you agree to our Terms of Service</p>
     </div>
@@ -506,8 +1093,121 @@
       <input type="text" placeholder="Search listings..." oninput="searchProducts(this.value)" class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
     </div>
 
+    <!-- Firebase quick connect (requested UI hooks) -->
+    <div class="mb-10 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5 sm:p-6">
+      <h3 class="font-syne font-bold text-xl mb-1">Seller Workspace</h3>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">Sign in from the navbar to post listings, then wait for admin approval before they appear publicly.</p>
+
+      <div class="grid sm:grid-cols-3 gap-3 mb-3">
+        <input id="title" type="text" placeholder="Listing title" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+        <input id="price" type="text" placeholder="Price (e.g. PKR 1200)" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+        <input id="image" type="text" placeholder="Paste Image URL" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+      </div>
+
+      <button onclick="uploadListing()" class="px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition">Submit For Approval</button>
+
+      <div class="mt-5">
+        <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Your Listings</p>
+        <div id="listings" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+      </div>
+
+      <div id="adminPanel" style="display:none;" class="mt-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 p-5 sm:p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+          <div>
+            <h2 class="font-syne font-bold text-2xl text-slate-900 dark:text-slate-100">Admin Dashboard</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Review and moderate pending listings.</p>
+          </div>
+          <button onclick="loadAdminListings()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            Refresh
+          </button>
+        </div>
+
+        <div class="grid sm:grid-cols-3 gap-3 mb-5">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-3">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Total Listings</p>
+            <p id="adminTotalCount" class="text-xl font-bold text-slate-900 dark:text-slate-100">0</p>
+          </div>
+          <div class="rounded-xl border border-amber-200 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-900/20 p-3">
+            <p class="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-300">Pending</p>
+            <p id="adminPendingCount" class="text-xl font-bold text-amber-700 dark:text-amber-300">0</p>
+          </div>
+          <div class="rounded-xl border border-emerald-200 dark:border-emerald-700/50 bg-emerald-50 dark:bg-emerald-900/20 p-3">
+            <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Approved</p>
+            <p id="adminApprovedCount" class="text-xl font-bold text-emerald-700 dark:text-emerald-300">0</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mb-4">
+          <button id="adminFilterPending" onclick="setAdminFilter('pending')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</button>
+          <button id="adminFilterApproved" onclick="setAdminFilter('approved')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Approved</button>
+        </div>
+
+        <div id="adminListings" class="space-y-3"></div>
+      </div>
+
+      <div class="mt-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
+        <h3 class="font-syne font-bold text-xl mb-3">Campus Chat</h3>
+        <p id="chatStatus" class="text-xs text-slate-500 mb-2">Private chat not selected</p>
+        <div id="chatBox" class="h-64 overflow-y-scroll border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/50"></div>
+        <div class="flex gap-2 mt-3">
+          <input id="messageInput" type="text" placeholder="Type message" class="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          <button onclick="sendMessage()" class="px-5 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">Send</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Products grid -->
-    <div id="products-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+    <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--                  PAGE: PROFILE                        -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-profile" class="page">
+  <div class="pt-28 pb-20 px-4 sm:px-6 max-w-6xl mx-auto">
+    <div class="mb-8">
+      <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-4">
+        <button onclick="showPage('home')" class="hover:text-primary transition-colors">Home</button>
+        <span>/</span>
+        <span class="text-slate-900 dark:text-white font-medium">Profile</span>
+      </div>
+      <h1 class="font-syne font-extrabold text-4xl sm:text-5xl mb-2">My Profile</h1>
+      <p class="text-slate-500 dark:text-slate-400">Your account, activity, and upcoming notifications center.</p>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-1 space-y-4">
+        <div id="profileUserCard" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
+          <span class="text-slate-500">Not logged in</span>
+        </div>
+        <div id="profileInfo" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5 text-sm text-slate-600 dark:text-slate-300"></div>
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
+          <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Membership</p>
+          <p id="profile-plan" class="font-semibold text-slate-700 dark:text-slate-200">Free</p>
+          <button id="profile-upgrade-btn" onclick="openModal('pro-checkout')" class="mt-4 w-full btn-shine bg-primary text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition">Upgrade to Pro</button>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2 space-y-6">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
+          <h2 class="font-syne font-bold text-xl mb-3">Notifications</h2>
+          <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">
+            Notification center will be connected next. You will see order updates, listing alerts, and chat mentions here.
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
+          <h2 class="font-syne font-bold text-xl mb-3">Activity</h2>
+          <div id="profile-activity" class="space-y-2 text-sm text-slate-600 dark:text-slate-300"></div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
+          <h2 class="font-syne font-bold text-xl mb-3">My Listings</h2>
+          <div id="myListings" class="space-y-2 text-sm text-slate-600 dark:text-slate-300"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -530,8 +1230,8 @@
         <p class="text-slate-500 dark:text-slate-400 max-w-lg">Grow your skills with free and premium courses crafted for campus students.</p>
       </div>
       <div class="flex rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 w-fit">
-        <button id="tab-free" onclick="switchPlan('free')" class="px-6 py-3 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/10 transition">🆓 Free</button>
-        <button id="tab-pro" onclick="switchPlan('pro')" class="px-6 py-3 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-primary/10 transition">⭐ Pro</button>
+        <button id="tab-free" onclick="showFree()" class="px-6 py-3 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/10 transition">🆓 Free</button>
+        <button id="tab-pro" onclick="showPro()" class="px-6 py-3 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-primary/10 transition">⭐ Pro</button>
       </div>
     </div>
 
@@ -553,7 +1253,8 @@
     </div>
 
     <!-- Courses grid -->
-    <div id="courses-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <div id="freeSection" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <div id="proSection" class="hidden grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
   </div>
 </div>
 
@@ -941,6 +1642,7 @@ let currentPlan = 'free';
 let lmsCurrentLesson = 0;
 let lmsTotal = 0;
 let activeCourseTitle = '';
+let userDropdownOpen = false;
 
 /* ═══════════════════════════════════════════
    NAVBAR SCROLL
@@ -960,7 +1662,11 @@ window.addEventListener('scroll', () => {
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const page = document.getElementById('page-' + name);
-  if (page) { page.classList.add('active'); window.scrollTo({top:0,behavior:'smooth'}); }
+  if (page) {
+    page.classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+    history.replaceState(null, '', '#/' + name);
+  }
   // update nav active state
   document.querySelectorAll('.nav-btn').forEach(b => {
     if (b.dataset.page === name) { b.classList.add('text-primary','bg-primary/10'); b.classList.remove('text-slate-600','dark:text-slate-300'); }
@@ -968,7 +1674,24 @@ function showPage(name) {
   });
   // init page data
   if (name === 'marketplace') renderProducts('all');
-  if (name === 'skillhub') { renderCourses(); switchPlan('free'); }
+  if (name === 'skillhub') {
+    syncPlanFromProfile().then((plan) => {
+      renderCourses();
+      if (plan === 'pro') showPro(true);
+      else showFree();
+    });
+  }
+  if (name === 'profile') {
+    renderProfilePanel();
+    renderActivity();
+    loadProfile();
+  }
+}
+
+function hydrateRoute() {
+  const hash = (window.location.hash || '').replace('#/', '').trim();
+  const allowed = ['home', 'marketplace', 'skillhub', 'lms', 'whoweare', 'services', 'profile'];
+  if (allowed.includes(hash)) showPage(hash);
 }
 
 /* ═══════════════════════════════════════════
@@ -995,33 +1718,296 @@ function toggleMenu() {
   document.body.style.overflow = menuOpen ? 'hidden' : '';
 }
 
+function getUserInitials(user) {
+  if (!user?.email) return 'U';
+  const local = user.email.split('@')[0] || 'user';
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0].toUpperCase())
+    .join('') || 'U';
+}
+
+function isAdminClient(user) {
+  return !!user?.email && user.email.toLowerCase() === String(window.ADMIN_EMAIL || '').toLowerCase();
+}
+
+function getUserStore() {
+  try {
+    return JSON.parse(localStorage.getItem('cx_user_store') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function setUserStore(store) {
+  localStorage.setItem('cx_user_store', JSON.stringify(store));
+}
+
+function getUserMeta(user) {
+  if (!user?.uid) return { plan: 'free', activity: [] };
+  const store = getUserStore();
+  const meta = store[user.uid] || { plan: 'free', activity: [] };
+  if (!Array.isArray(meta.activity)) meta.activity = [];
+  if (!meta.plan) meta.plan = 'free';
+  return meta;
+}
+
+function setUserMeta(user, patch) {
+  if (!user?.uid) return;
+  const store = getUserStore();
+  const current = getUserMeta(user);
+  store[user.uid] = { ...current, ...patch };
+  setUserStore(store);
+}
+
+function addActivity(action) {
+  const user = window.currentUser;
+  if (!user?.uid) return;
+  const meta = getUserMeta(user);
+  const entry = { action, time: new Date().toISOString() };
+  const next = [entry, ...meta.activity].slice(0, 30);
+  setUserMeta(user, { activity: next });
+}
+window.logUserActivity = addActivity;
+
+function renderActivity() {
+  const box = document.getElementById('profile-activity');
+  if (!box) return;
+  if (!window.currentUser) {
+    box.innerHTML = '<div class="text-slate-500">Sign in to view activity.</div>';
+    return;
+  }
+  const meta = getUserMeta(window.currentUser);
+  if (!meta.activity.length) {
+    box.innerHTML = '<div class="text-slate-500">No activity yet. Post a listing or start a chat.</div>';
+    return;
+  }
+  box.innerHTML = meta.activity.map((a) => {
+    const when = new Date(a.time).toLocaleString();
+    return `<div class="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2">${a.action}<div class="text-xs text-slate-400 mt-1">${when}</div></div>`;
+  }).join('');
+}
+
+function renderProfilePanel() {
+  const user = window.currentUser;
+  const planEl = document.getElementById('profile-plan');
+  const upBtn = document.getElementById('profile-upgrade-btn');
+  if (!planEl || !upBtn) return;
+
+  if (!user) {
+    planEl.textContent = 'Guest';
+    upBtn.classList.add('hidden');
+    const info = document.getElementById('profileInfo');
+    const myListings = document.getElementById('myListings');
+    if (info) info.innerHTML = '<p><strong>Email:</strong> Not logged in</p>';
+    if (myListings) myListings.innerHTML = '<p class="text-slate-500">Sign in to view your listings.</p>';
+    return;
+  }
+
+  const isAdmin = isAdminClient(user);
+  window.firebaseGetUserProfile(user.uid)
+    .then((profile) => {
+      const plan = isAdmin ? 'pro' : (profile?.isPro ? 'pro' : 'free');
+      currentPlan = plan;
+      planEl.textContent = isAdmin ? 'Admin (Full Access)' : (plan === 'pro' ? 'Premium Pro' : 'Free');
+      upBtn.classList.toggle('hidden', isAdmin || plan === 'pro');
+    })
+    .catch(() => {
+      currentPlan = isAdmin ? 'pro' : 'free';
+      planEl.textContent = isAdmin ? 'Admin (Full Access)' : 'Free';
+      upBtn.classList.toggle('hidden', isAdmin);
+    });
+}
+
+async function syncPlanFromProfile() {
+  if (isAdminClient(window.currentUser)) {
+    currentPlan = 'pro';
+    return 'pro';
+  }
+  if (!window.currentUser) {
+    currentPlan = 'free';
+    return 'free';
+  }
+
+  try {
+    const profile = await window.firebaseGetUserProfile(window.currentUser.uid);
+    currentPlan = profile?.isPro ? 'pro' : 'free';
+  } catch {
+    currentPlan = 'free';
+  }
+  return currentPlan;
+}
+
+window.loadProfile = async function () {
+  const user = window.currentUser;
+  const info = document.getElementById('profileInfo');
+  const listingsBox = document.getElementById('myListings');
+  if (!info || !listingsBox) return;
+
+  if (!user) {
+    info.innerHTML = '<p><strong>Email:</strong> Not logged in</p>';
+    listingsBox.innerHTML = '<p class="text-slate-500">Sign in to view your listings.</p>';
+    return;
+  }
+
+  info.innerHTML = `
+    <div class="bg-white p-4 rounded shadow dark:bg-slate-800/60">
+      <p><strong>Email:</strong> ${user.email}</p>
+    </div>
+  `;
+
+  const mine = await window.firebaseListMyListings(user.uid);
+
+  if (!mine.length) {
+    listingsBox.innerHTML = '<p class="text-slate-500">No listings yet.</p>';
+    return;
+  }
+
+  listingsBox.innerHTML = mine.map((item) => {
+    const status = item.status || 'pending';
+    const statusClass = status === 'approved'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-amber-600 dark:text-amber-300';
+    return `<div class="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2">${item.title || 'Untitled Listing'} - <span class="font-semibold ${statusClass}">${status}</span></div>`;
+  }).join('');
+};
+
+function closeUserDropdown() {
+  const dd = document.getElementById('user-dropdown');
+  if (dd) dd.classList.add('hidden');
+  userDropdownOpen = false;
+}
+
+function toggleUserDropdown(event) {
+  event.stopPropagation();
+  const dd = document.getElementById('user-dropdown');
+  if (!dd) return;
+  userDropdownOpen = !userDropdownOpen;
+  dd.classList.toggle('hidden', !userDropdownOpen);
+}
+
+function goProfileFromDropdown() {
+  closeUserDropdown();
+  showPage('profile');
+}
+
+function logoutUserFromDropdown() {
+  closeUserDropdown();
+  logoutUser();
+}
+
+/* ═══════════════════════════════════════════
+   AUTH + PRODUCTS
+═══════════════════════════════════════════ */
+function updateNavForUser(user) {
+  const loginBtn = document.getElementById('auth-login-btn')
+  const avatarWrap = document.getElementById('auth-avatar-wrap')
+  const avatarBtn = document.getElementById('auth-avatar-btn')
+  const mobileAuthBtn = document.getElementById('mobile-auth-btn')
+  const upgradeBtn = document.getElementById('dropdown-upgrade')
+  if (!loginBtn || !avatarWrap || !avatarBtn) return
+
+  const admin = isAdminClient(user)
+  if (admin) currentPlan = 'pro'
+
+  if (user) {
+    loginBtn.classList.add('hidden')
+    avatarWrap.classList.remove('hidden')
+    avatarBtn.textContent = getUserInitials(user)
+    if (mobileAuthBtn) {
+      mobileAuthBtn.innerHTML = '<i class="fa-regular fa-user"></i> My Profile'
+      mobileAuthBtn.setAttribute('onclick', "showPage('profile');toggleMenu()")
+    }
+    if (upgradeBtn) {
+      upgradeBtn.classList.toggle('hidden', admin)
+    }
+
+    if (!admin && typeof window.firebaseGetUserProfile === 'function') {
+      window.firebaseGetUserProfile(user.uid)
+        .then((profile) => {
+          const isPro = !!profile?.isPro
+          currentPlan = isPro ? 'pro' : 'free'
+          if (upgradeBtn) {
+            upgradeBtn.classList.toggle('hidden', isPro)
+          }
+        })
+        .catch(() => {
+          currentPlan = 'free'
+        })
+    }
+  } else {
+    avatarWrap.classList.add('hidden')
+    closeUserDropdown()
+    loginBtn.classList.remove('hidden')
+    if (mobileAuthBtn) {
+      mobileAuthBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login'
+      mobileAuthBtn.setAttribute('onclick', "openModal('login');toggleMenu()")
+    }
+    currentPlan = 'free'
+  }
+
+  renderProfilePanel()
+  renderActivity()
+}
+
+async function logoutUser() {
+  if (typeof window.firebaseSignOut === 'function') {
+    try { await window.firebaseSignOut() } catch {}
+  }
+  addActivity('Logged out')
+  window.currentUser = null
+  updateNavForUser(null)
+  showToast('👋 You have been logged out.', 'success')
+}
+
 /* ═══════════════════════════════════════════
    PRODUCTS
 ═══════════════════════════════════════════ */
-function renderProducts(filter, query='') {
-  const grid = document.getElementById('products-grid');
-  if (!grid) return;
-  let filtered = products.filter(p => (filter === 'all' || p.cat === filter) && (query === '' || p.title.toLowerCase().includes(query.toLowerCase())));
-  if (!filtered.length) { grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400"><i class="fa-solid fa-box-open text-4xl mb-4 block"></i>No listings found</div>'; return; }
-  grid.innerHTML = filtered.map(p => `
-    <div class="card-hover bg-white dark:bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col">
-      <div class="h-40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-6xl relative">
-        ${p.icon}
-        <span class="absolute top-3 right-3 chip text-[0.65rem]">${p.badge}</span>
-      </div>
-      <div class="p-5 flex flex-col flex-1">
-        <h3 class="font-semibold text-sm mb-1 line-clamp-2">${p.title}</h3>
-        <p class="text-xs text-slate-400 mb-3">${p.seller} · ${p.condition}</p>
-        <p class="font-syne font-bold text-primary text-lg mt-auto mb-4">${p.price}</p>
-        <div class="flex gap-2">
-          <button onclick="openModal('contact',${JSON.stringify(p).replace(/"/g,'&quot;')})" class="btn-shine flex-1 bg-primary text-white py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition text-center">Contact</button>
-          <button class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition text-slate-500">
-            <i class="fa-regular fa-heart text-sm"></i>
-          </button>
+async function renderProducts(filter, query = '') {
+  const grid = document.getElementById('products-grid')
+  if (!grid) return
+  grid.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-3xl"></i></div>'
+
+  try {
+    let data = await window.firebaseListListings()
+    data = data
+      .filter((p) => {
+        const cat = (p.category || 'other').toLowerCase()
+        const title = (p.title || '').toLowerCase()
+        const byFilter = filter === 'all' || cat === filter
+        const byQuery = query === '' || title.includes(query.toLowerCase())
+        return byFilter && byQuery
+      })
+      .sort((a, b) => {
+        const sa = a.created_at?.seconds || 0
+        const sb = b.created_at?.seconds || 0
+        return sb - sa
+      })
+
+    if (!data?.length) {
+      grid.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-sm text-slate-500 dark:text-slate-400">No listings found.</div>'
+      return
+    }
+
+    grid.innerHTML = data.map(p => `
+      <div class="card-hover bg-white dark:bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm p-4 flex flex-col gap-4">
+        <div class="h-40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-5xl relative">
+          <img src="${p.image || 'https://via.placeholder.com/300'}" onerror="this.src='https://via.placeholder.com/300'" class="h-full w-full object-cover rounded" />
+          <span class="absolute top-3 right-3 chip text-[0.65rem]">${(p.category || 'other')}</span>
+        </div>
+        <div class="flex flex-col flex-1 gap-2">
+          <h3 class="font-semibold text-sm mb-1">${p.title || 'Untitled Listing'}</h3>
+          <p class="text-xs text-slate-400">${p.condition || 'Good'}</p>
+          <p class="font-syne font-bold text-primary text-lg mt-auto">${p.price || 'Price not set'}</p>
+          <button onclick="startChat('${p.id}','${p.userId || p.user_id || ''}')" class="btn-shine w-full bg-primary text-white py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">Contact Seller</button>
         </div>
       </div>
-    </div>
-  `).join('');
+    `).join('')
+  } catch {
+    grid.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-sm text-slate-500 dark:text-slate-400">Unable to load listings right now.</div>'
+  }
 }
 
 function filterProducts(btn, cat) {
@@ -1041,14 +2027,18 @@ function searchProducts(q) { renderProducts(currentFilter, q); }
    COURSES
 ═══════════════════════════════════════════ */
 function renderCourses() {
-  const grid = document.getElementById('courses-grid');
-  if (!grid) return;
-  const filtered = courses.filter(c => currentPlan === 'pro' ? true : c.plan === 'free');
-  grid.innerHTML = filtered.map(c => `
+  const freeGrid = document.getElementById('freeSection');
+  const proGrid = document.getElementById('proSection');
+  if (!freeGrid || !proGrid) return;
+
+  const freeCourses = courses.filter(c => c.plan === 'free');
+  const proCourses = courses.filter(c => c.plan === 'pro');
+
+  freeGrid.innerHTML = freeCourses.map(c => `
     <div class="card-hover bg-white dark:bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col">
       <div class="h-36 bg-gradient-to-br ${c.color} flex items-center justify-center text-5xl relative">
         ${c.icon}
-        ${c.plan === 'pro' ? '<span class="absolute top-3 right-3 badge bg-accent text-slate-900 text-[0.6rem]"><i class="fa-solid fa-crown"></i> PRO</span>' : '<span class="absolute top-3 right-3 badge bg-emerald-500 text-white text-[0.6rem]">FREE</span>'}
+        <span class="absolute top-3 right-3 badge bg-emerald-500 text-white text-[0.6rem]">FREE</span>
       </div>
       <div class="p-5 flex flex-col flex-1">
         <h3 class="font-semibold text-sm mb-1 line-clamp-2">${c.title}</h3>
@@ -1058,32 +2048,119 @@ function renderCourses() {
           <span>· ${c.lessons} lessons</span>
           <span class="chip">${c.level}</span>
         </div>
-        <button onclick="launchLMS('${c.title.replace(/'/g,"\\'")}',${c.plan === 'pro' ? 'true' : 'false'})" class="btn-shine mt-auto w-full py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">
-          ${c.plan === 'pro' && currentPlan !== 'pro' ? '<i class="fa-solid fa-lock text-xs mr-1"></i> Upgrade to Enroll' : 'Enroll Now'}
+        <button onclick="launchLMS('${c.title.replace(/'/g,"\\'")}',false)" class="btn-shine mt-auto w-full py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">
+          Enroll Now
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  const effectivePlan = isAdminClient(window.currentUser) ? 'pro' : currentPlan;
+  proGrid.innerHTML = proCourses.map(c => `
+    <div class="card-hover bg-white dark:bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col">
+      <div class="h-36 bg-gradient-to-br ${c.color} flex items-center justify-center text-5xl relative">
+        ${c.icon}
+        <span class="absolute top-3 right-3 badge bg-accent text-slate-900 text-[0.6rem]"><i class="fa-solid fa-crown"></i> PRO</span>
+      </div>
+      <div class="p-5 flex flex-col flex-1">
+        <h3 class="font-semibold text-sm mb-1 line-clamp-2">${c.title}</h3>
+        <p class="text-xs text-slate-400 mb-2">${c.instructor}</p>
+        <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-4">
+          <span class="stars">★ ${c.rating}</span>
+          <span>· ${c.lessons} lessons</span>
+          <span class="chip">${c.level}</span>
+        </div>
+        <button onclick="launchLMS('${c.title.replace(/'/g,"\\'")}',true)" class="btn-shine mt-auto w-full py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">
+          ${effectivePlan !== 'pro' ? '<i class="fa-solid fa-lock text-xs mr-1"></i> Upgrade to Enroll' : 'Enroll Now'}
         </button>
       </div>
     </div>
   `).join('');
 }
 
-function switchPlan(plan) {
-  currentPlan = plan;
+function setPlanTabStyles(plan) {
   document.getElementById('tab-free').className = plan === 'free'
     ? 'px-6 py-3 text-sm font-semibold bg-primary text-white transition'
     : 'px-6 py-3 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/10 transition';
   document.getElementById('tab-pro').className = plan === 'pro'
     ? 'px-6 py-3 text-sm font-semibold bg-primary text-white transition'
     : 'px-6 py-3 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-primary/10 transition';
-  document.getElementById('plan-banner-free').classList.toggle('hidden', plan !== 'free');
-  document.getElementById('plan-banner-pro').classList.toggle('hidden', plan !== 'pro');
+}
+
+function showFree() {
+  currentPlan = 'free';
+  const freeSection = document.getElementById('freeSection');
+  const proSection = document.getElementById('proSection');
+  if (freeSection && proSection) {
+    freeSection.classList.remove('hidden');
+    proSection.classList.add('hidden');
+  }
+  document.getElementById('plan-banner-free').classList.remove('hidden');
+  document.getElementById('plan-banner-pro').classList.add('hidden');
+  setPlanTabStyles('free');
+}
+
+async function showPro(skipChecks = false) {
+  if (!skipChecks) {
+    await switchPlan('pro');
+    return;
+  }
+  currentPlan = 'pro';
+  const freeSection = document.getElementById('freeSection');
+  const proSection = document.getElementById('proSection');
+  if (freeSection && proSection) {
+    freeSection.classList.add('hidden');
+    proSection.classList.remove('hidden');
+  }
+  document.getElementById('plan-banner-free').classList.add('hidden');
+  document.getElementById('plan-banner-pro').classList.remove('hidden');
+  setPlanTabStyles('pro');
+}
+
+async function switchPlan(plan) {
+  await syncPlanFromProfile();
+
+  if (isAdminClient(window.currentUser)) {
+    currentPlan = 'pro';
+    plan = 'pro';
+  }
+
+  if (plan === 'pro' && !isAdminClient(window.currentUser)) {
+    if (!window.currentUser) {
+      openModal('login');
+      return;
+    }
+    try {
+      const profile = await window.firebaseGetUserProfile(window.currentUser.uid);
+      if (!profile?.isPro) {
+        currentPlan = 'free';
+        openModal('pro-checkout');
+        showFree();
+        return;
+      }
+    } catch {
+      currentPlan = 'free';
+      openModal('pro-checkout');
+      showFree();
+      return;
+    }
+  }
+
+  currentPlan = plan;
   renderCourses();
+  if (plan === 'pro') {
+    await showPro(true);
+  } else {
+    showFree();
+  }
 }
 
 /* ═══════════════════════════════════════════
    LMS
 ═══════════════════════════════════════════ */
 function launchLMS(title, isPro) {
-  if (isPro && currentPlan !== 'pro') { openModal('pro-checkout'); return; }
+  const effectivePlan = isAdminClient(window.currentUser) ? 'pro' : currentPlan;
+  if (isPro && effectivePlan !== 'pro') { openModal('pro-checkout'); return; }
   activeCourseTitle = title;
   lmsCurrentLesson = 0;
   // build sidebar
@@ -1169,7 +2246,7 @@ function openModal(type, data) {
         <div class="space-y-4">
           <div>
             <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">University Email</label>
-            <input type="email" placeholder="you@university.edu.pk" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            <input id="login-email" type="email" placeholder="you@university.edu.pk" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
           </div>
           <div>
             <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Password</label>
@@ -1184,11 +2261,6 @@ function openModal(type, data) {
           </div>
           <button onclick="fakeLogin()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Sign In</button>
         </div>
-        <div class="relative my-6"><div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200 dark:border-slate-700"></div></div><div class="relative flex justify-center"><span class="bg-white dark:bg-slate-900 px-3 text-xs text-slate-400">or continue with</span></div></div>
-        <button class="w-full border border-slate-200 dark:border-slate-700 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
-          <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 32.8 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.6 29.3 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5C35.3 45.5 44 36.8 44 25.5c0-1.9-.2-3.7-.4-5.5z"/><path fill="#FF3D00" d="M6.3 15.1l6.6 4.8C14.5 16.1 19 13 24 13c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.6 29.3 4.5 24 4.5c-7.7 0-14.4 4.4-17.7 10.6z"/><path fill="#4CAF50" d="M24 45.5c5.2 0 9.9-1.9 13.4-5l-6.2-5.2C29.3 37 26.7 38 24 38c-5.1 0-9.5-3.1-11.3-7.6l-6.5 5C9.7 41.3 16.4 45.5 24 45.5z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.6-2.6 4.8-4.9 6.2l6.2 5.2c3.6-3.3 5.9-8.2 5.9-13.9 0-1.9-.2-3.7-.4-5.5z"/></svg>
-          Continue with Google
-        </button>
         <p class="text-center text-sm text-slate-400 mt-6">Don't have an account? <button onclick="openModal('signup')" class="text-primary font-semibold hover:underline">Sign Up</button></p>
       </div>`;
   }
@@ -1207,20 +2279,20 @@ function openModal(type, data) {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">First Name</label>
-              <input type="text" placeholder="Ali" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+              <input id="signup-first-name" type="text" placeholder="Ali" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
             </div>
             <div>
               <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Last Name</label>
-              <input type="text" placeholder="Raza" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+              <input id="signup-last-name" type="text" placeholder="Raza" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
             </div>
           </div>
           <div>
             <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">University Email</label>
-            <input type="email" placeholder="you@university.edu.pk" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            <input id="signup-email" type="email" placeholder="you@university.edu.pk" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
           </div>
           <div>
             <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">University</label>
-            <select class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition">
+            <select id="signup-university" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition">
               <option>Select your university</option>
               <option>LUMS, Lahore</option>
               <option>NUST, Islamabad</option>
@@ -1321,18 +2393,18 @@ function openModal(type, data) {
         <div class="space-y-4">
           <div>
             <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Title</label>
-            <input type="text" placeholder="e.g. Calculus Textbook — 8th Edition" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            <input id="post-title" type="text" placeholder="e.g. Calculus Textbook — 8th Edition" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Category</label>
-              <select class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition">
+              <select id="post-category" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition">
                 <option>Books</option><option>Electronics</option><option>Furniture</option><option>Clothing</option><option>Other</option>
               </select>
             </div>
             <div>
               <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Price (PKR)</label>
-              <input type="number" placeholder="800" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+              <input id="post-price" type="number" placeholder="800" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
             </div>
           </div>
           <div>
@@ -1346,7 +2418,7 @@ function openModal(type, data) {
           </div>
           <div>
             <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Description</label>
-            <textarea rows="3" placeholder="Describe your item, include any flaws or extras..." class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition resize-none"></textarea>
+            <textarea id="post-description" rows="3" placeholder="Describe your item, include any flaws or extras..." class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition resize-none"></textarea>
           </div>
           <button onclick="fakePost()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Post Listing</button>
         </div>
@@ -1372,24 +2444,116 @@ function togglePwd(id) {
   f.type = f.type === 'password' ? 'text' : 'password';
 }
 
-function fakeLogin() { closeModal(); showToast('🎉 Welcome back! You\'re now logged in.', 'success'); }
+async function fakeLogin() {
+  const email = document.getElementById('login-email')?.value.trim() || ''
+  const password = document.getElementById('pwd-login').value
 
-function fakeSignup() {
-  const tc = document.getElementById('terms-check');
-  if (!tc || !tc.checked) { showToast('⚠️ Please accept the Terms & Conditions to continue.', 'warning'); return; }
-  closeModal(); showToast('🎉 Account created! Check your university email to verify.', 'success');
+  if (!email || !password) {
+    showToast('⚠️ Please fill in all fields.', 'warning'); return
+  }
+
+  showToast('⏳ Signing you in...', 'success')
+  try {
+    const cred = await window.login(email, password)
+    const user = cred?.user || window.currentUser
+    setUserMeta(user, { plan: getUserMeta(user).plan || 'free' })
+    if (user) {
+      window.currentUser = user
+      addActivity('Logged in')
+    }
+    closeModal()
+    showToast('🎉 Welcome back, ' + email + '!', 'success')
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error')
+  }
 }
 
-function fakePurchase() {
+async function fakeSignup() {
+  const tc = document.getElementById('terms-check')
+  if (!tc || !tc.checked) {
+    showToast('⚠️ Please accept the Terms & Conditions.', 'warning'); return
+  }
+
+  const firstName = document.getElementById('signup-first-name')?.value.trim() || ''
+  const lastName  = document.getElementById('signup-last-name')?.value.trim() || ''
+  const email     = document.getElementById('signup-email')?.value.trim() || ''
+  const university = document.getElementById('signup-university')?.value || ''
+  const password  = document.getElementById('pwd-signup').value
+
+  if (!firstName || !email || !password || university === 'Select your university') {
+    showToast('⚠️ Please fill in all required fields.', 'warning'); return
+  }
+  if (password.length < 8) {
+    showToast('⚠️ Password must be at least 8 characters.', 'warning'); return
+  }
+
+  showToast('⏳ Creating your account...', 'success')
+  try {
+    const cred = await window.signup(email, password)
+    const user = cred?.user || window.currentUser
+    setUserMeta(user, { plan: 'free', activity: [] })
+    if (user) {
+      window.currentUser = user
+      addActivity('Created account')
+    }
+    closeModal()
+    showToast('🎉 Account created!', 'success')
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error')
+  }
+}
+
+async function fakePurchase() {
+  if (!window.currentUser) {
+    closeModal(); openModal('login'); return
+  }
+
   currentPlan = 'pro';
-  closeModal();
-  showToast('⭐ Pro plan activated! Enjoy 240+ courses.', 'success');
-  renderCourses();
-  switchPlan('pro');
+  await window.firebaseUpgradePro(window.currentUser.uid)
+  addActivity('Upgraded to Pro plan')
+  closeModal()
+  showToast('⭐ Pro plan activated! Enjoy 240+ courses.', 'success')
+  renderCourses()
+  switchPlan('pro')
 }
 
 function fakeMessage() { closeModal(); showToast('💬 Message sent to seller!', 'success'); }
-function fakePost() { closeModal(); showToast('✅ Listing posted! It will be live after verification.', 'success'); }
+
+async function fakePost() {
+  if (!window.currentUser) {
+    closeModal(); openModal('login'); return
+  }
+  const title = document.getElementById('post-title')?.value.trim() || ''
+  const price = document.getElementById('post-price')?.value.trim() || ''
+  const category = (document.getElementById('post-category')?.value || 'other').toLowerCase()
+  const description = document.getElementById('post-description')?.value.trim() || ''
+
+  if (!title || !price) {
+    showToast('⚠️ Title and price are required.', 'warning'); return
+  }
+
+  try {
+    await window.firebaseAddListing({
+      userId: window.currentUser.uid,
+      title,
+      price: 'PKR ' + price,
+      category: category || 'other',
+      condition: 'Good',
+      description
+    })
+
+    closeModal()
+    addActivity('Posted a new listing')
+    showToast('✅ Listing posted successfully!', 'success')
+    loadListings()
+    if (typeof window.loadAdminPanel === 'function') {
+      window.loadAdminPanel()
+    }
+    renderProducts('all')
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, 'error')
+  }
+}
 
 /* ═══════════════════════════════════════════
    TOAST
@@ -1409,11 +2573,26 @@ function showToast(msg, type='success') {
 ═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   showPage('home');
+  hydrateRoute();
+  window.addEventListener('hashchange', hydrateRoute);
+
+  // Ensure auth controls are in the right state even if auth callback fires early.
+  if (typeof updateNavForUser === 'function') {
+    updateNavForUser(window.currentUser || null);
+  }
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('auth-avatar-wrap');
+    if (!wrap) return;
+    if (userDropdownOpen && !wrap.contains(e.target)) closeUserDropdown();
+  });
+
   // scroll navbar effect on load
   if (window.scrollY > 20) {
     document.getElementById('navbar').classList.add('bg-white/90','dark:bg-slate-900/90','backdrop-blur-xl','shadow-sm');
   }
 });
 </script>
+
 </body>
 </html>
