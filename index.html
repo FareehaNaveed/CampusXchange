@@ -173,6 +173,61 @@
       background:rgba(37,99,235,.1); color:#2563EB; border:1px solid rgba(37,99,235,.25);
     }
     .dark .chip { background:rgba(37,99,235,.2); color:#93C5FD; border-color:rgba(37,99,235,.35); }
+
+    /* ── Home box background visuals ── */
+    @keyframes auroraShift {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(-10px, 8px) scale(1.08); }
+    }
+    .home-visual-box {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+    }
+    .home-visual-box > * {
+      position: relative;
+      z-index: 1;
+    }
+    .home-visual-box::before,
+    .home-visual-box::after {
+      content: '';
+      position: absolute;
+      z-index: 0;
+      border-radius: 999px;
+      pointer-events: none;
+      opacity: 0.6;
+      transition: transform .5s cubic-bezier(.23,1,.32,1), opacity .3s;
+    }
+    .home-visual-box::before {
+      width: 260px;
+      height: 260px;
+      top: -110px;
+      right: -90px;
+      background: radial-gradient(circle at center, rgba(37,99,235,.45), rgba(37,99,235,0));
+      animation: auroraShift 8s ease-in-out infinite;
+    }
+    .home-visual-box::after {
+      width: 220px;
+      height: 220px;
+      bottom: -95px;
+      left: -70px;
+      background:
+        radial-gradient(circle at center, rgba(255,193,7,.32), rgba(255,193,7,0)),
+        repeating-radial-gradient(circle at center, rgba(255,255,255,.18) 0 1px, transparent 1px 8px);
+    }
+    .home-visual-box:hover::before { transform: scale(1.12) translate(-8px, 8px); opacity: .72; }
+    .home-visual-box:hover::after { transform: scale(1.1) translate(8px, -8px); opacity: .62; }
+
+    .dark .home-visual-box {
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.12);
+    }
+    .dark .home-visual-box::before { background: radial-gradient(circle at center, rgba(96,165,250,.42), rgba(96,165,250,0)); }
+    .dark .home-visual-box::after {
+      background:
+        radial-gradient(circle at center, rgba(251,191,36,.26), rgba(251,191,36,0)),
+        repeating-radial-gradient(circle at center, rgba(148,163,184,.2) 0 1px, transparent 1px 8px);
+    }
   </style>
 </head>
 
@@ -311,41 +366,35 @@ window.login = async (emailArg, passwordArg) => {
   }
 };
 
+function syncAuthUiState(user) {
+  const loginBtn = document.getElementById("auth-login-btn");
+  const avatarWrap = document.getElementById("auth-avatar-wrap");
+  const avatarBtn = document.getElementById("auth-avatar-btn");
+
+  if (!loginBtn || !avatarWrap) return;
+
+  if (user) {
+    loginBtn.classList.add("hidden");
+    avatarWrap.classList.remove("hidden");
+    if (avatarBtn) {
+      const email = (user.email || "U").trim();
+      avatarBtn.textContent = (email.slice(0, 2) || "U").toUpperCase();
+    }
+  } else {
+    loginBtn.classList.remove("hidden");
+    avatarWrap.classList.add("hidden");
+  }
+}
+window.syncAuthUiState = syncAuthUiState;
+
 // 💾 REMEMBER LOGIN (AUTO)
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
   window.currentUser = user;
   const adminPanel = document.getElementById("adminPanel");
-  const loginBtn = document.getElementById("auth-login-btn");
-  const avatarWrap = document.getElementById("auth-avatar-wrap");
-  const mobileAuthBtn = document.getElementById("mobile-auth-btn");
 
   renderUserInfo(user);
-
-  // Enforce a single source of truth for auth controls.
-  if (loginBtn && avatarWrap) {
-    if (user) {
-      loginBtn.classList.add("hidden");
-      loginBtn.style.display = "none";
-      avatarWrap.classList.remove("hidden");
-      avatarWrap.style.display = "block";
-    } else {
-      loginBtn.classList.remove("hidden");
-      loginBtn.style.display = "";
-      avatarWrap.classList.add("hidden");
-      avatarWrap.style.display = "none";
-    }
-  }
-
-  if (mobileAuthBtn) {
-    if (user) {
-      mobileAuthBtn.innerHTML = '<i class="fa-regular fa-user"></i> My Profile';
-      mobileAuthBtn.setAttribute("onclick", "showPage('profile');toggleMenu()");
-    } else {
-      mobileAuthBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login';
-      mobileAuthBtn.setAttribute("onclick", "openModal('login');toggleMenu()");
-    }
-  }
+  syncAuthUiState(user);
 
   if (typeof window.updateNavForUser === "function") {
     window.updateNavForUser(user);
@@ -356,8 +405,8 @@ onAuthStateChanged(auth, (user) => {
   }
 
   if (isAdminUser(user)) {
-    if (typeof window.loadAdminPanel === "function") {
-      window.loadAdminPanel();
+    if (typeof window.loadAdminListings === "function") {
+      window.loadAdminListings();
     }
   }
 
@@ -412,8 +461,11 @@ window.uploadListing = async () => {
       alert("Uploaded!");
     }
     loadListings();
-    if (typeof window.loadAdminPanel === "function") {
-      window.loadAdminPanel();
+    if (typeof window.loadAdminListings === "function") {
+      window.loadAdminListings();
+    }
+    if (typeof window.renderProducts === "function") {
+      window.renderProducts("all");
     }
 
   } catch (err) {
@@ -473,7 +525,7 @@ window.loadListings = async () => {
     return;
   }
 
-  myListings.forEach((item) => {
+  const cards = myListings.map((item) => {
     const safeTitle = item.title || "Untitled Listing";
     const safePrice = item.price || "Price not set";
     const safeImage = item.image || "https://via.placeholder.com/300";
@@ -482,23 +534,19 @@ window.loadListings = async () => {
       ? "text-emerald-600 dark:text-emerald-400"
       : "text-amber-600 dark:text-amber-300";
 
-    container.innerHTML += `
-      <div class="bg-white dark:bg-slate-800/60 rounded-xl shadow p-4 flex flex-col gap-3 border border-slate-100 dark:border-slate-700/50">
-        <img src="${safeImage}" onerror="this.src='https://via.placeholder.com/300'" class="h-40 w-full object-cover rounded">
-        <div class="min-w-0">
-          <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">${safeTitle}</h3>
-          <p class="text-blue-600 font-semibold text-sm">${safePrice}</p>
-          <p class="text-xs ${statusClass}">${status}</p>
+    return `
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-800/60 flex flex-col gap-3">
+        <img src="${safeImage}" onerror="this.src='https://via.placeholder.com/300'" class="h-32 w-full object-cover rounded-lg">
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold truncate text-slate-900 dark:text-slate-100">${safeTitle}</p>
+          <p class="text-xs text-primary font-semibold">${safePrice}</p>
+          <p class="text-[11px] ${statusClass}">${status}</p>
         </div>
       </div>
     `;
   });
-};
 
-window.loadAdminPanel = function () {
-  if (typeof window.loadAdminListings === "function") {
-    return window.loadAdminListings();
-  }
+  container.innerHTML = cards.join("");
 };
 
 window.adminListingFilter = "pending";
@@ -555,7 +603,7 @@ window.loadAdminListings = async function () {
     return;
   }
 
-  viewListings.forEach((item) => {
+  const cards = viewListings.map((item) => {
     const id = item.id;
     const safeImage = item.image || "https://via.placeholder.com/300";
     const safeTitle = item.title || "Untitled Listing";
@@ -571,7 +619,7 @@ window.loadAdminListings = async function () {
          <button onclick="rejectListing('${id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-rose-700 transition">Reject</button>`
       : `<button onclick="rejectListing('${id}')" class="bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-800 transition">Remove</button>`;
 
-    container.innerHTML += `
+    return `
       <div class="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
         <img src="${safeImage}" onerror="this.src='https://via.placeholder.com/300'" class="h-32 w-full object-cover rounded mb-2">
         <div class="flex items-start justify-between gap-3 mb-2">
@@ -586,6 +634,8 @@ window.loadAdminListings = async function () {
       </div>
     `;
   });
+
+  container.innerHTML = cards.join("");
 };
 
 window.approveListing = async function (id) {
@@ -605,6 +655,9 @@ window.approveListing = async function (id) {
   if (typeof window.renderProducts === "function") {
     window.renderProducts("all");
   }
+  if (typeof window.loadListings === "function") {
+    window.loadListings();
+  }
 };
 
 window.rejectListing = async function (id) {
@@ -618,6 +671,12 @@ window.rejectListing = async function (id) {
   }
   await deleteDoc(doc(db, "listings", id));
   loadAdminListings();
+  if (typeof window.loadListings === "function") {
+    window.loadListings();
+  }
+  if (typeof window.renderProducts === "function") {
+    window.renderProducts("all");
+  }
 };
 
 window.deleteListing = async function (id) {
@@ -723,16 +782,18 @@ window.loadChat = function () {
       return;
     }
 
-    snapshot.forEach((doc) => {
+    const rows = snapshot.docs.map((doc) => {
       const msg = doc.data();
       const senderLabel = msg.sender === window.currentUser?.uid ? "You" : "Them";
 
-      container.innerHTML += `
+      return `
         <div class="mb-2 text-sm text-slate-700 dark:text-slate-200">
           <strong class="font-semibold">${senderLabel}</strong>: ${msg.text}
         </div>
       `;
     });
+
+    container.innerHTML = rows.join("");
 
   });
 };
@@ -912,15 +973,15 @@ window.onload = () => {
 
       <!-- Stats row -->
       <div class="fade-up delay-5 grid grid-cols-3 gap-4 max-w-lg mx-auto">
-        <div class="glass rounded-2xl p-4">
+        <div class="home-visual-box glass rounded-2xl p-4">
           <p class="font-syne font-bold text-2xl text-primary">12K+</p>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Students</p>
         </div>
-        <div class="glass rounded-2xl p-4">
+        <div class="home-visual-box glass rounded-2xl p-4">
           <p class="font-syne font-bold text-2xl text-primary">3.8K</p>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Listings</p>
         </div>
-        <div class="glass rounded-2xl p-4">
+        <div class="home-visual-box glass rounded-2xl p-4">
           <p class="font-syne font-bold text-2xl text-primary">240+</p>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Courses</p>
         </div>
@@ -946,7 +1007,7 @@ window.onload = () => {
 
     <div class="grid md:grid-cols-2 gap-8">
       <!-- Marketplace Card -->
-      <div onclick="showPage('marketplace')" class="card-hover cursor-pointer group relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/40 p-8">
+      <div onclick="showPage('marketplace')" class="home-visual-box card-hover cursor-pointer group relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/40 p-8">
         <div class="absolute top-0 right-0 w-48 h-48 rounded-full bg-emerald-400/10 -translate-y-12 translate-x-12 group-hover:scale-125 transition-transform duration-700"></div>
         <span class="chip mb-4 block w-fit" style="background:rgba(16,185,129,.1);color:#059669;border-color:rgba(16,185,129,.25)">Marketplace</span>
         <div class="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30 group-hover:rotate-6 transition-transform">
@@ -960,7 +1021,7 @@ window.onload = () => {
       </div>
 
       <!-- Skill Hub Card -->
-      <div onclick="showPage('skillhub')" class="card-hover cursor-pointer group relative rounded-3xl overflow-hidden bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/30 border border-violet-100 dark:border-violet-900/40 p-8">
+      <div onclick="showPage('skillhub')" class="home-visual-box card-hover cursor-pointer group relative rounded-3xl overflow-hidden bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/30 border border-violet-100 dark:border-violet-900/40 p-8">
         <div class="absolute top-0 right-0 w-48 h-48 rounded-full bg-violet-400/10 -translate-y-12 translate-x-12 group-hover:scale-125 transition-transform duration-700"></div>
         <span class="chip mb-4 block w-fit" style="background:rgba(139,92,246,.1);color:#7C3AED;border-color:rgba(139,92,246,.25)">Skill Hub</span>
         <div class="w-14 h-14 rounded-2xl bg-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-violet-500/30 group-hover:rotate-6 transition-transform">
@@ -984,7 +1045,7 @@ window.onload = () => {
       </div>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- testimonial cards -->
-        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover">
+        <div class="home-visual-box bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover">
           <div class="stars text-base mb-3">★★★★★</div>
           <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-5">"Sold my old laptop in 2 hours! CampusXchange is literally the best thing to happen to student life."</p>
           <div class="flex items-center gap-3">
@@ -992,7 +1053,7 @@ window.onload = () => {
             <div><p class="font-semibold text-sm">Ahmed Khan</p><p class="text-xs text-slate-400">LUMS, Lahore</p></div>
           </div>
         </div>
-        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover">
+        <div class="home-visual-box bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover">
           <div class="stars text-base mb-3">★★★★★</div>
           <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-5">"The Skill Hub Pro plan is insane value. I learned UI/UX design in 3 weeks and landed a freelance client!"</p>
           <div class="flex items-center gap-3">
@@ -1000,7 +1061,7 @@ window.onload = () => {
             <div><p class="font-semibold text-sm">Zara Fatima</p><p class="text-xs text-slate-400">NUST, Islamabad</p></div>
           </div>
         </div>
-        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover sm:col-span-2 lg:col-span-1">
+        <div class="home-visual-box bg-white dark:bg-slate-800/60 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 card-hover sm:col-span-2 lg:col-span-1">
           <div class="stars text-base mb-3">★★★★★</div>
           <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-5">"The community here is amazing. Found study partners, bought affordable books, and even got a part-time gig!"</p>
           <div class="flex items-center gap-3">
@@ -1019,23 +1080,23 @@ window.onload = () => {
       <h2 class="font-syne font-extrabold text-3xl sm:text-4xl">Real students, real stories</h2>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="col-span-2 row-span-2 rounded-3xl overflow-hidden bg-gradient-to-br from-primary to-blue-900 flex items-end p-6 min-h-[240px] card-hover">
+      <div class="home-visual-box col-span-2 row-span-2 rounded-3xl overflow-hidden bg-gradient-to-br from-primary to-blue-900 flex items-end p-6 min-h-[240px] card-hover">
         <div>
           <span class="badge bg-white/20 text-white mb-2"><i class="fa-solid fa-circle-check text-accent"></i> Verified Listings</span>
           <h4 class="font-syne font-bold text-white text-xl">Safe & Trusted Trading</h4>
           <p class="text-blue-200 text-sm mt-1">Every listing verified by our campus team</p>
         </div>
       </div>
-      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-600 flex items-end p-5 min-h-[110px] card-hover">
+      <div class="home-visual-box rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-600 flex items-end p-5 min-h-[110px] card-hover">
         <div><p class="font-bold text-white font-syne">3.8K Listings</p><p class="text-emerald-100 text-xs">Active right now</p></div>
       </div>
-      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-violet-500 to-purple-700 flex items-end p-5 min-h-[110px] card-hover">
+      <div class="home-visual-box rounded-3xl overflow-hidden bg-gradient-to-br from-violet-500 to-purple-700 flex items-end p-5 min-h-[110px] card-hover">
         <div><p class="font-bold text-white font-syne">240+ Courses</p><p class="text-violet-200 text-xs">Free & Pro plans</p></div>
       </div>
-      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex items-end p-5 min-h-[110px] card-hover">
+      <div class="home-visual-box rounded-3xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex items-end p-5 min-h-[110px] card-hover">
         <div><p class="font-bold text-white font-syne">12K+ Students</p><p class="text-amber-100 text-xs">Growing community</p></div>
       </div>
-      <div class="rounded-3xl overflow-hidden bg-gradient-to-br from-rose-400 to-pink-600 flex items-end p-5 min-h-[110px] card-hover">
+      <div class="home-visual-box rounded-3xl overflow-hidden bg-gradient-to-br from-rose-400 to-pink-600 flex items-end p-5 min-h-[110px] card-hover">
         <div><p class="font-bold text-white font-syne">Peer Learning</p><p class="text-rose-100 text-xs">Student-led sessions</p></div>
       </div>
     </div>
@@ -1093,71 +1154,87 @@ window.onload = () => {
       <input type="text" placeholder="Search listings..." oninput="searchProducts(this.value)" class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
     </div>
 
-    <!-- Firebase quick connect (requested UI hooks) -->
-    <div class="mb-10 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5 sm:p-6">
-      <h3 class="font-syne font-bold text-xl mb-1">Seller Workspace</h3>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">Sign in from the navbar to post listings, then wait for admin approval before they appear publicly.</p>
-
-      <div class="grid sm:grid-cols-3 gap-3 mb-3">
-        <input id="title" type="text" placeholder="Listing title" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
-        <input id="price" type="text" placeholder="Price (e.g. PKR 1200)" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
-        <input id="image" type="text" placeholder="Paste Image URL" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+    <!-- Products grid -->
+    <div class="mb-6 flex items-center justify-between gap-4">
+      <div>
+        <h2 class="font-syne font-bold text-2xl sm:text-3xl text-slate-900 dark:text-slate-100">Browse Listings</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Approved items only. Use filters or search to narrow the results.</p>
       </div>
+      <span class="hidden sm:inline-flex badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Approved only</span>
+    </div>
+    <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
 
-      <button onclick="uploadListing()" class="px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition">Submit For Approval</button>
-
-      <div class="mt-5">
-        <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Your Listings</p>
-        <div id="listings" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
-      </div>
-
-      <div id="adminPanel" style="display:none;" class="mt-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 p-5 sm:p-6 shadow-sm">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+    <!-- Seller workspace and moderation -->
+    <div class="mt-14 grid lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5 sm:p-6 shadow-sm">
+        <div class="flex items-center justify-between gap-4 mb-5">
           <div>
-            <h2 class="font-syne font-bold text-2xl text-slate-900 dark:text-slate-100">Admin Dashboard</h2>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Review and moderate pending listings.</p>
+            <h3 class="font-syne font-bold text-xl mb-1">Seller Workspace</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Sign in from the navbar to post listings, then wait for admin approval before they appear publicly.</p>
           </div>
-          <button onclick="loadAdminListings()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-            Refresh
-          </button>
+          <span class="hidden sm:inline-flex badge bg-primary/10 text-primary border-primary/20">Admin approved</span>
         </div>
 
-        <div class="grid sm:grid-cols-3 gap-3 mb-5">
-          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-3">
-            <p class="text-xs uppercase tracking-wide text-slate-500">Total Listings</p>
-            <p id="adminTotalCount" class="text-xl font-bold text-slate-900 dark:text-slate-100">0</p>
-          </div>
-          <div class="rounded-xl border border-amber-200 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-900/20 p-3">
-            <p class="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-300">Pending</p>
-            <p id="adminPendingCount" class="text-xl font-bold text-amber-700 dark:text-amber-300">0</p>
-          </div>
-          <div class="rounded-xl border border-emerald-200 dark:border-emerald-700/50 bg-emerald-50 dark:bg-emerald-900/20 p-3">
-            <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Approved</p>
-            <p id="adminApprovedCount" class="text-xl font-bold text-emerald-700 dark:text-emerald-300">0</p>
-          </div>
+        <div class="grid sm:grid-cols-3 gap-3 mb-3">
+          <input id="title" type="text" placeholder="Listing title" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          <input id="price" type="text" placeholder="Price (e.g. PKR 1200)" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          <input id="image" type="text" placeholder="Paste Image URL" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
         </div>
 
-        <div class="flex gap-2 mb-4">
-          <button id="adminFilterPending" onclick="setAdminFilter('pending')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</button>
-          <button id="adminFilterApproved" onclick="setAdminFilter('approved')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Approved</button>
-        </div>
+        <button onclick="uploadListing()" class="px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition">Submit For Approval</button>
 
-        <div id="adminListings" class="space-y-3"></div>
+        <div class="mt-5">
+          <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Your Listings</p>
+          <div id="listings" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </div>
       </div>
 
-      <div class="mt-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
-        <h3 class="font-syne font-bold text-xl mb-3">Campus Chat</h3>
-        <p id="chatStatus" class="text-xs text-slate-500 mb-2">Private chat not selected</p>
-        <div id="chatBox" class="h-64 overflow-y-scroll border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/50"></div>
-        <div class="flex gap-2 mt-3">
-          <input id="messageInput" type="text" placeholder="Type message" class="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
-          <button onclick="sendMessage()" class="px-5 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">Send</button>
+      <div class="space-y-6">
+        <div id="adminPanel" style="display:none;" class="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 p-5 sm:p-6 shadow-sm">
+          <div class="flex flex-col gap-3 mb-5">
+            <div>
+              <h2 class="font-syne font-bold text-2xl text-slate-900 dark:text-slate-100">Admin Dashboard</h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400">Review and moderate pending listings.</p>
+            </div>
+            <button onclick="loadAdminListings()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition w-fit">
+              Refresh
+            </button>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-3">
+              <p class="text-[11px] uppercase tracking-wide text-slate-500">Total</p>
+              <p id="adminTotalCount" class="text-xl font-bold text-slate-900 dark:text-slate-100">0</p>
+            </div>
+            <div class="rounded-xl border border-amber-200 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-900/20 p-3">
+              <p class="text-[11px] uppercase tracking-wide text-amber-700 dark:text-amber-300">Pending</p>
+              <p id="adminPendingCount" class="text-xl font-bold text-amber-700 dark:text-amber-300">0</p>
+            </div>
+            <div class="rounded-xl border border-emerald-200 dark:border-emerald-700/50 bg-emerald-50 dark:bg-emerald-900/20 p-3">
+              <p class="text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Approved</p>
+              <p id="adminApprovedCount" class="text-xl font-bold text-emerald-700 dark:text-emerald-300">0</p>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mb-4">
+            <button id="adminFilterPending" onclick="setAdminFilter('pending')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Pending</button>
+            <button id="adminFilterApproved" onclick="setAdminFilter('approved')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Approved</button>
+          </div>
+
+          <div id="adminListings" class="space-y-3"></div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5 shadow-sm">
+          <h3 class="font-syne font-bold text-xl mb-3">Campus Chat</h3>
+          <p id="chatStatus" class="text-xs text-slate-500 mb-2">Private chat not selected</p>
+          <div id="chatBox" class="h-64 overflow-y-scroll border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/50"></div>
+          <div class="flex gap-2 mt-3">
+            <input id="messageInput" type="text" placeholder="Type message" class="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            <button onclick="sendMessage()" class="px-5 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">Send</button>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Products grid -->
-    <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
   </div>
 </div>
 
@@ -1178,9 +1255,6 @@ window.onload = () => {
 
     <div class="grid lg:grid-cols-3 gap-6">
       <div class="lg:col-span-1 space-y-4">
-        <div id="profileUserCard" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
-          <span class="text-slate-500">Not logged in</span>
-        </div>
         <div id="profileInfo" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5 text-sm text-slate-600 dark:text-slate-300"></div>
         <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
           <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Membership</p>
@@ -1638,6 +1712,7 @@ const lmsModules = [
 ];
 
 let currentFilter = 'all';
+let currentSearchQuery = '';
 let currentPlan = 'free';
 let lmsCurrentLesson = 0;
 let lmsTotal = 0;
@@ -1673,7 +1748,7 @@ function showPage(name) {
     else { b.classList.remove('text-primary','bg-primary/10'); }
   });
   // init page data
-  if (name === 'marketplace') renderProducts('all');
+  if (name === 'marketplace') renderProducts(currentFilter, currentSearchQuery);
   if (name === 'skillhub') {
     syncPlanFromProfile().then((plan) => {
       renderCourses();
@@ -1847,14 +1922,19 @@ window.loadProfile = async function () {
   if (!info || !listingsBox) return;
 
   if (!user) {
-    info.innerHTML = '<p><strong>Email:</strong> Not logged in</p>';
+    info.innerHTML = `
+      <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-red-500 font-semibold bg-white/50 dark:bg-slate-900/40">
+        Not logged in
+      </div>
+    `;
     listingsBox.innerHTML = '<p class="text-slate-500">Sign in to view your listings.</p>';
     return;
   }
 
   info.innerHTML = `
-    <div class="bg-white p-4 rounded shadow dark:bg-slate-800/60">
-      <p><strong>Email:</strong> ${user.email}</p>
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4">
+      <h3 class="font-syne font-bold text-lg text-slate-900 dark:text-slate-100 mb-2">My Profile</h3>
+      <p class="text-slate-600 dark:text-slate-300"><strong>Email:</strong> ${user.email}</p>
     </div>
   `;
 
@@ -1912,9 +1992,11 @@ function updateNavForUser(user) {
   const admin = isAdminClient(user)
   if (admin) currentPlan = 'pro'
 
+  if (typeof window.syncAuthUiState === 'function') {
+    window.syncAuthUiState(user)
+  }
+
   if (user) {
-    loginBtn.classList.add('hidden')
-    avatarWrap.classList.remove('hidden')
     avatarBtn.textContent = getUserInitials(user)
     if (mobileAuthBtn) {
       mobileAuthBtn.innerHTML = '<i class="fa-regular fa-user"></i> My Profile'
@@ -1938,9 +2020,7 @@ function updateNavForUser(user) {
         })
     }
   } else {
-    avatarWrap.classList.add('hidden')
     closeUserDropdown()
-    loginBtn.classList.remove('hidden')
     if (mobileAuthBtn) {
       mobileAuthBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login'
       mobileAuthBtn.setAttribute('onclick', "openModal('login');toggleMenu()")
@@ -1965,6 +2045,21 @@ async function logoutUser() {
 /* ═══════════════════════════════════════════
    PRODUCTS
 ═══════════════════════════════════════════ */
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function clampText(value, maxLen = 120) {
+  const text = String(value ?? '').trim();
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 1) + '…';
+}
+
 async function renderProducts(filter, query = '') {
   const grid = document.getElementById('products-grid')
   if (!grid) return
@@ -1987,24 +2082,45 @@ async function renderProducts(filter, query = '') {
       })
 
     if (!data?.length) {
-      grid.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-sm text-slate-500 dark:text-slate-400">No listings found.</div>'
+      grid.innerHTML = `
+        <div class="col-span-full rounded-3xl border border-dashed border-slate-300 dark:border-slate-600 p-8 sm:p-10 text-center bg-white/70 dark:bg-slate-800/40">
+          <div class="w-14 h-14 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+            <i class="fa-solid fa-store text-2xl"></i>
+          </div>
+          <h3 class="font-syne font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">No listings yet</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">Approved listings appear here after admin review. Post a listing from Seller Workspace, then refresh after approval.</p>
+        </div>
+      `
       return
     }
 
-    grid.innerHTML = data.map(p => `
-      <div class="card-hover bg-white dark:bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm p-4 flex flex-col gap-4">
-        <div class="h-40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-5xl relative">
-          <img src="${p.image || 'https://via.placeholder.com/300'}" onerror="this.src='https://via.placeholder.com/300'" class="h-full w-full object-cover rounded" />
-          <span class="absolute top-3 right-3 chip text-[0.65rem]">${(p.category || 'other')}</span>
+    grid.innerHTML = data.map(p => {
+      const cardTitle = escapeHtml(clampText(p.title || 'Untitled Listing', 90))
+      const cardPrice = escapeHtml(clampText(p.price || 'Price not set', 30))
+      const cardCategory = escapeHtml(clampText(p.category || 'other', 20))
+      const cardCondition = escapeHtml(clampText(p.condition || 'Good', 20))
+      const imageUrl = String(p.image || 'https://via.placeholder.com/600x450')
+
+      return `
+      <article class="group bg-white dark:bg-slate-800/60 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col min-h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+        <div class="aspect-[4/3] bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 relative overflow-hidden">
+          <img src="${escapeHtml(imageUrl)}" onerror="this.src='https://via.placeholder.com/600x450'" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent"></div>
+          <div class="absolute top-3 left-3 chip text-[0.65rem] uppercase tracking-wide">${cardCategory}</div>
+          <div class="absolute top-3 right-3 rounded-full bg-black/60 text-white text-[0.65rem] px-2.5 py-1 backdrop-blur-sm">${cardCondition}</div>
         </div>
-        <div class="flex flex-col flex-1 gap-2">
-          <h3 class="font-semibold text-sm mb-1">${p.title || 'Untitled Listing'}</h3>
-          <p class="text-xs text-slate-400">${p.condition || 'Good'}</p>
-          <p class="font-syne font-bold text-primary text-lg mt-auto">${p.price || 'Price not set'}</p>
-          <button onclick="startChat('${p.id}','${p.userId || p.user_id || ''}')" class="btn-shine w-full bg-primary text-white py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">Contact Seller</button>
+        <div class="p-5 flex flex-col flex-1 gap-3">
+          <div>
+            <h3 class="font-semibold text-base leading-snug text-slate-900 dark:text-slate-100 line-clamp-2">${cardTitle}</h3>
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 mt-1">Approved student listing</p>
+          </div>
+          <div class="flex items-center justify-between gap-3 mt-auto">
+            <p class="font-syne font-bold text-primary text-xl">${cardPrice}</p>
+            <button onclick="startChat('${p.id}','${p.userId || p.user_id || ''}')" class="btn-shine px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition shadow-lg shadow-primary/20">Contact</button>
+          </div>
         </div>
-      </div>
-    `).join('')
+      </article>
+    `}).join('')
   } catch {
     grid.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-sm text-slate-500 dark:text-slate-400">Unable to load listings right now.</div>'
   }
@@ -2018,10 +2134,13 @@ function filterProducts(btn, cat) {
   });
   btn.classList.add('bg-primary','text-white');
   btn.classList.remove('bg-slate-100','dark:bg-slate-800','text-slate-600','dark:text-slate-300');
-  renderProducts(cat);
+  renderProducts(cat, currentSearchQuery);
 }
 
-function searchProducts(q) { renderProducts(currentFilter, q); }
+function searchProducts(q) {
+  currentSearchQuery = q;
+  renderProducts(currentFilter, q);
+}
 
 /* ═══════════════════════════════════════════
    COURSES
@@ -2545,9 +2664,11 @@ async function fakePost() {
     closeModal()
     addActivity('Posted a new listing')
     showToast('✅ Listing posted successfully!', 'success')
-    loadListings()
-    if (typeof window.loadAdminPanel === 'function') {
-      window.loadAdminPanel()
+    if (typeof window.loadListings === 'function') {
+      window.loadListings()
+    }
+    if (typeof window.loadAdminListings === 'function') {
+      window.loadAdminListings()
     }
     renderProducts('all')
   } catch (err) {
