@@ -1219,9 +1219,25 @@ function buildQuestionAnswers(questions, profile) {
   return questions.map((q) => {
     return {
       question: q,
-      answer: `Core answer approach for ${subject}: start with definition, explain 2-3 key concepts, add one example, and conclude with practical relevance. For exam scoring, include headings, diagram/flow when possible, and concise final summary.`
+      answer: `For ${subject}: (a) Start with a direct definition, (b) explain 2-3 core points, (c) add one short example/use-case, (d) end with conclusion in one line.`
     };
   });
+}
+
+function buildAssistantDisclaimerLines() {
+  return [
+    "- Disclaimer: Suggested SQ/LQ/MCQ are prediction-style practice only.",
+    "- No guarantee that exact same questions will appear in your final paper.",
+    "- Book availability can vary by city/university; always verify latest edition and course outline."
+  ];
+}
+
+function buildAccessibleBookTips() {
+  return [
+    "- Prefer books available in university library first.",
+    "- Check second-hand campus groups/book banks for low-cost copies.",
+    "- Use official publisher samples/legitimate ebook options when hardcopy is unavailable."
+  ];
 }
 
 function formatBooksOnlyReply(profile, rec) {
@@ -1231,9 +1247,15 @@ function formatBooksOnlyReply(profile, rec) {
     lines.push(`${i + 1}. ${book.title} | ${book.edition} | Author(s): ${book.author}`);
   });
   lines.push("");
-  lines.push("2. Quick Study Tip");
+  lines.push("2. Access-Friendly Options");
+  buildAccessibleBookTips().forEach((tip) => lines.push(tip));
+  lines.push("");
+  lines.push("3. Quick Study Tip");
   lines.push(`- ${rec.tip}`);
   lines.push("- If you want paper questions, ask: Generate SQ/LQ/MCQ from my outline.");
+  lines.push("");
+  lines.push("4. Important Note");
+  buildAssistantDisclaimerLines().forEach((line) => lines.push(line));
   return lines.join("\n");
 }
 
@@ -1257,18 +1279,166 @@ function formatQuestionsOnlyReply(pastPaper, outlineTopics) {
   lines.push("");
   lines.push("5. Need Answers?");
   lines.push("- Ask: Answer these questions, and I will provide point-wise answers.");
+  lines.push("");
+  lines.push("6. Important Note");
+  buildAssistantDisclaimerLines().forEach((line) => lines.push(line));
   return lines.join("\n");
 }
 
 function formatQuestionAnswersReply(qaPairs) {
   const lines = [];
-  lines.push("1. Answers (Point-wise)");
+  lines.push("1. Answers (Clear + Point-wise)");
   qaPairs.forEach((item, idx) => {
     lines.push("");
     lines.push(`${idx + 1}. Question: ${item.question}`);
     lines.push(`- Answer: ${item.answer}`);
+    lines.push("- Exam tip: Keep headings, short paragraphs, and one example for better marks.");
   });
+  lines.push("");
+  lines.push("2. Important Note");
+  buildAssistantDisclaimerLines().forEach((line) => lines.push(line));
   return lines.join("\n");
+}
+
+function buildQueryAwareGeneralAnswer(text, profile) {
+  const q = String(text || "").trim();
+  const lower = q.toLowerCase();
+
+  if (!q) {
+    return [
+      "1. Clarify Your Query",
+      "- Please type a question, and I will answer it in a direct and clean format.",
+      "",
+      "2. What I Can Do",
+      "- Solve simple math and comparison queries.",
+      "- Explain concepts in short or long form.",
+      "- Give books, SQ/LQ, and point-wise exam answers when needed."
+    ].join("\n");
+  }
+
+  const qMark = q.endsWith("?") ? q.slice(0, -1).trim() : q;
+
+  const compareMatch = qMark.match(/^(?:what is the difference between|difference between|compare|compare the|distinguish between)\s+(.+)$/i);
+  if (compareMatch) {
+    const topic = compareMatch[1].trim();
+    return [
+      "1. Comparison Answer",
+      `- Topic: ${topic}`,
+      "- Point 1: Definition of each term.",
+      "- Point 2: Main differences in 2-3 bullets.",
+      "- Point 3: One simple example for each.",
+      "- If you want, I can convert this into a table format."
+    ].join("\n");
+  }
+
+  const whyMatch = qMark.match(/^why\s+(.+)$/i);
+  if (whyMatch) {
+    const topic = whyMatch[1].trim();
+    return [
+      "1. Direct Answer",
+      `- Why ${topic}: because it helps explain the reason, impact, or purpose of the topic in a simple way.`,
+      "",
+      "2. Better Exam Answer Structure",
+      "- Start with the main reason.",
+      "- Add 2 supporting points.",
+      "- End with a one-line conclusion."
+    ].join("\n");
+  }
+
+  const howMatch = qMark.match(/^how\s+(.+)$/i);
+  if (howMatch) {
+    const topic = howMatch[1].trim();
+    return [
+      "1. Direct Answer",
+      `- How ${topic}: follow a step-by-step approach and explain each step clearly.`,
+      "",
+      "2. Quick Steps",
+      "- Step 1: Identify the requirement.",
+      "- Step 2: Write the process in order.",
+      "- Step 3: Give a practical example.",
+      "- Step 4: Summarize in one line."
+    ].join("\n");
+  }
+
+  const whatMatch = qMark.match(/^(?:what is|define|explain|describe|tell me about|what are)\s+(.+)$/i);
+  if (whatMatch) {
+    const topic = whatMatch[1].trim();
+    return [
+      "1. Direct Answer",
+      `- ${topic}: a short definition comes first, followed by the main idea and one example.`,
+      "",
+      "2. Short Explanation",
+      "- Meaning/definition",
+      "- Main use or purpose",
+      "- One example",
+      "- One-line conclusion"
+    ].join("\n");
+  }
+
+  const listMatch = qMark.match(/^(?:advantages|disadvantages|pros and cons|features|steps|uses)\s+of\s+(.+)$/i);
+  if (listMatch) {
+    const topic = listMatch[1].trim();
+    return [
+      "1. Point-wise Answer",
+      `- Topic: ${topic}`,
+      "- 1. First important point",
+      "- 2. Second important point",
+      "- 3. Third important point",
+      "- Add one example if the question is exam-based."
+    ].join("\n");
+  }
+
+  if (/^(hi|hello|hey)\b/i.test(lower)) {
+    return [
+      "1. Greeting",
+      "- Hello! Ask me anything, and I’ll answer it directly.",
+      "- I can also help with books, study notes, SQ/LQ, and exam answers."
+    ].join("\n");
+  }
+
+  return [
+    "1. Direct Answer",
+    `- ${q}`,
+    "- I can give a clearer answer if you add the subject or context.",
+    "",
+    "2. Better Response Format",
+    "- Ask for: short answer, long answer, or point-wise answer.",
+    "- For study topics, add subject/semester so I can tailor it properly.",
+    "",
+    "3. Important Note",
+    ...buildAssistantDisclaimerLines()
+  ].join("\n");
+}
+
+function formatGeneralAnswer(text, profile) {
+  const q = String(text || "").trim();
+  const subjectLabel = profile.subject ? `for ${profile.subject}` : "for your query";
+
+  // Simple equality fallback (e.g., 2=5?, 10=10).
+  const equality = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*(=|==)\s*(-?\d+(?:\.\d+)?)\s*\??\s*$/);
+  if (equality) {
+    const left = Number(equality[1]);
+    const right = Number(equality[3]);
+    const result = left === right ? "True" : "False";
+    const detail = left === right ? "Both sides are equal." : "The two sides are not equal.";
+    return `1. Direct Answer\n- ${left} = ${right}? ${result}\n- ${detail}`;
+  }
+
+  // Simple arithmetic fallback (e.g., 2+5, 10 / 2, 3*7).
+  const math = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (math) {
+    const a = Number(math[1]);
+    const op = math[2];
+    const b = Number(math[3]);
+    let ans = null;
+    if (op === "+") ans = a + b;
+    if (op === "-") ans = a - b;
+    if (op === "*") ans = a * b;
+    if (op === "/") ans = b === 0 ? "undefined (division by zero)" : a / b;
+    return `1. Direct Answer\n- ${a} ${op} ${b} = ${ans}`;
+  }
+
+  return buildQueryAwareGeneralAnswer(q, profile);
 }
 
 function formatAssistantReply(profile, rec, pastPaper, outlineTopics, includeQuestions) {
@@ -1286,24 +1456,31 @@ function formatAssistantReply(profile, rec, pastPaper, outlineTopics, includeQue
   });
   lines.push("");
 
-  lines.push("3. Study Strategy");
+  lines.push("3. Access-Friendly Options");
+  buildAccessibleBookTips().forEach((tip) => lines.push(tip));
+  lines.push("");
+
+  lines.push("4. Study Strategy");
   lines.push(`- ${rec.tip}`);
   lines.push("- Cover one textbook chapter, then solve 10-15 mixed practice questions.");
   lines.push("");
 
   if (!includeQuestions) {
-    lines.push("4. Questions On-Demand");
+    lines.push("5. Questions On-Demand");
     lines.push("- I will generate SQ, LQ, MCQ, and past-paper style questions when you ask.");
     lines.push("- Ask like: Generate questions from this outline, or Give me SQ/LQ for this subject.");
     lines.push("");
 
-    lines.push("5. To Improve Accuracy");
+    lines.push("6. To Improve Accuracy");
     lines.push("- Paste your official subject outline with unit names.");
     lines.push("- Mention your exact university for targeted paper patterning.");
+    lines.push("");
+    lines.push("7. Important Note");
+    buildAssistantDisclaimerLines().forEach((line) => lines.push(line));
     return lines.join("\n");
   }
 
-  lines.push("4. Past-Paper Trend Scan (Pattern-Based)");
+  lines.push("5. Past-Paper Trend Scan (Pattern-Based)");
   lines.push(`- Scanned Pattern: ${pastPaper.style}`);
   if (outlineTopics.length) {
     lines.push(`- Outline Topics Detected: ${outlineTopics.join(", ")}`);
@@ -1312,21 +1489,24 @@ function formatAssistantReply(profile, rec, pastPaper, outlineTopics, includeQue
   }
   lines.push("");
 
-  lines.push("5. Suggested Short Questions");
+  lines.push("6. Suggested Short Questions");
   pastPaper.shortQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
   lines.push("");
 
-  lines.push("6. Suggested Long Questions");
+  lines.push("7. Suggested Long Questions");
   pastPaper.longQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
   lines.push("");
 
-  lines.push("7. Suggested Numerical/Analytical Questions");
+  lines.push("8. Suggested Numerical/Analytical Questions");
   pastPaper.numericalQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
   lines.push("");
 
-  lines.push("8. To Improve Accuracy");
+  lines.push("9. To Improve Accuracy");
   lines.push("- Paste your official subject outline with unit names.");
   lines.push("- Mention your exact university for more targeted paper patterning.");
+  lines.push("");
+  lines.push("10. Important Note");
+  buildAssistantDisclaimerLines().forEach((line) => lines.push(line));
 
   return lines.join("\n");
 }
@@ -1448,13 +1628,25 @@ window.sendMessage = async function () {
   if (!state.major) missing.push("major");
   if (!state.subject) missing.push("subject");
 
-  if (missing.length) {
+  const includeQuestions = wantsQuestionSuggestions(text);
+  const includeQuestionAnswers = wantsQuestionAnswers(text);
+  const includeBooks = wantsBookRecommendations(text);
+  const hasStudyIntent = includeBooks || includeQuestions || includeQuestionAnswers;
+  const hasProfile = missing.length === 0;
+
+  // If profile is incomplete but user asked a general question, do not block with profile prompt.
+  if (!hasProfile && !hasStudyIntent) {
+    pushAssistantMessage(formatGeneralAnswer(text, state));
+    if (typeof window.logUserActivity === "function") {
+      window.logUserActivity("Used AI general Q&A");
+    }
+    await saveAssistantHistoryForUser();
+    return;
+  }
+
+  if (!hasProfile) {
     pushAssistantMessage(`Please also share your ${missing.join(", ")} so I can give recommendations and past-paper style questions in proper points.`);
   } else {
-    const includeQuestions = wantsQuestionSuggestions(text);
-    const includeQuestionAnswers = wantsQuestionAnswers(text);
-    const includeBooks = wantsBookRecommendations(text) || (!includeQuestions && !includeQuestionAnswers);
-
     const rec = buildBookRecommendations(state);
     const pastPaper = buildPastPaperQuestions(state, state.outlineTopics || []);
 
@@ -1469,6 +1661,8 @@ window.sendMessage = async function () {
       pushAssistantMessage(formatQuestionsOnlyReply(pastPaper, state.outlineTopics || []));
     } else if (includeBooks && !includeQuestions) {
       pushAssistantMessage(formatBooksOnlyReply(state, rec));
+    } else if (!hasStudyIntent) {
+      pushAssistantMessage(formatGeneralAnswer(text, state));
     } else {
       // Mixed intent: keep response scoped to current query with compact sections only.
       const lines = [];
@@ -1708,11 +1902,6 @@ window.onload = () => {
       </div>
     </div>
 
-    <!-- Scroll indicator -->
-    <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-slate-400 text-xs">
-      <span>Scroll</span>
-      <div class="w-[1px] h-8 bg-gradient-to-b from-slate-400 to-transparent animate-bounce"></div>
-    </div>
   </section>
 
   <!-- FEATURES SECTION -->
