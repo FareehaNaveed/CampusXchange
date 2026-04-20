@@ -422,6 +422,10 @@ onAuthStateChanged(auth, (user) => {
     window.loadListings();
   }
 
+  if (typeof window.loadChat === "function") {
+    window.loadChat();
+  }
+
   if (user) {
     ensureUserRecord(user).catch(() => {});
   }
@@ -691,119 +695,827 @@ window.deleteListing = async function (id) {
   return window.rejectListing(id);
 };
 
-window.startChat = async function (listingId, sellerId) {
-  if (!window.currentUser) {
-    if (typeof window.showToast === "function") {
-      window.showToast("Please login first.", "warning");
-    } else {
-      alert("Please login first.");
-    }
+window.bookAssistantState = {
+  semester: "",
+  major: "",
+  subject: "",
+  university: "",
+  outlineTopics: [],
+  messages: [],
+  currentSessionId: "",
+  sessions: []
+};
+
+const ASSISTANT_HISTORY_COLLECTION = "assistant_histories";
+const ASSISTANT_SESSIONS_SUBCOLLECTION = "sessions";
+
+function normalizeAssistantMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter((m) => m && (m.role === "user" || m.role === "assistant"))
+    .map((m) => ({
+      role: m.role,
+      text: String(m.text || "").slice(0, 3000)
+    }))
+    .slice(-120);
+}
+
+function clearAssistantState() {
+  const state = window.bookAssistantState;
+  state.semester = "";
+  state.major = "";
+  state.subject = "";
+  state.university = "";
+  state.outlineTopics = [];
+  state.messages = [];
+}
+
+function createAssistantSessionId() {
+  return `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getSessionTitleFromMessages(messages, subject) {
+  const firstUser = (messages || []).find((m) => m.role === "user" && String(m.text || "").trim());
+  const source = firstUser ? String(firstUser.text).trim() : String(subject || "Book Recommendation Chat").trim();
+  if (source.length <= 62) return source || "Book Recommendation Chat";
+  return `${source.slice(0, 59)}...`;
+}
+
+function normalizeSessionTimestamp(value) {
+  if (!value) return "";
+  if (typeof value?.toDate === "function") return value.toDate().toISOString();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
+}
+
+function getAssistantSessionRef(uid, sessionId) {
+  return doc(db, ASSISTANT_HISTORY_COLLECTION, uid, ASSISTANT_SESSIONS_SUBCOLLECTION, sessionId);
+}
+
+function upsertCurrentSessionInState() {
+  const state = window.bookAssistantState;
+  if (!state.currentSessionId) return;
+  const title = getSessionTitleFromMessages(state.messages, state.subject);
+  const updatedAt = new Date().toISOString();
+  const next = {
+    id: state.currentSessionId,
+    title,
+    subject: state.subject || "",
+    semester: state.semester || "",
+    major: state.major || "",
+    updatedAt
+  };
+
+  const others = (state.sessions || []).filter((s) => s.id !== state.currentSessionId);
+  state.sessions = [next, ...others].slice(0, 30);
+}
+
+function renderPreviousChats() {
+  const box = document.getElementById("previousChatsList");
+  if (!box) return;
+
+  const state = window.bookAssistantState;
+  if (!window.currentUser?.uid) {
+    box.innerHTML = '<div class="text-xs text-slate-500">Login to see and reopen your previous chats.</div>';
     return;
   }
 
-  const buyerId = window.currentUser.uid;
-  if (!sellerId || sellerId === buyerId) {
-    if (typeof window.showToast === "function") {
-      window.showToast("Cannot start chat for this listing.", "warning");
-    } else {
-      alert("Cannot start chat for this listing.");
-    }
+  if (!Array.isArray(state.sessions) || !state.sessions.length) {
+    box.innerHTML = '<div class="text-xs text-slate-500">No previous chats yet. Start a new conversation.</div>';
     return;
   }
 
-  const pair = [buyerId, sellerId].sort();
-  const chatId = `${pair[0]}_${pair[1]}`;
+  box.innerHTML = state.sessions.map((session) => {
+    const active = session.id === state.currentSessionId;
+    const when = session.updatedAt ? new Date(session.updatedAt).toLocaleString() : "Recently";
+    const safeTitle = escapeAssistantText(session.title || "Book Recommendation Chat");
+    const safeMeta = escapeAssistantText([session.semester && `Sem ${session.semester}`, session.major].filter(Boolean).join(" - ") || "General");
+    return `
+      <button onclick="openAssistantSession('${session.id}')" class="w-full text-left rounded-xl border px-3 py-2 mb-2 transition ${active ? "border-primary bg-primary/10" : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60"}">
+        <p class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">${safeTitle}</p>
+        <p class="text-[11px] text-slate-500 mt-1">${safeMeta}</p>
+        <p class="text-[10px] text-slate-400 mt-1">${escapeAssistantText(when)}</p>
+      </button>
+    `;
+  }).join("");
+}
 
-  await setDoc(doc(db, "chats", chatId), {
-    users: pair,
-    listingId,
+async function loadAssistantSessionsForUser() {
+  const user = window.currentUser;
+  if (!user?.uid) {
+    window.bookAssistantState.sessions = [];
+    return [];
+  }
+
+  try {
+    const q = query(collection(db, ASSISTANT_HISTORY_COLLECTION, user.uid, ASSISTANT_SESSIONS_SUBCOLLECTION), orderBy("updated_at", "desc"));
+    const snap = await getDocs(q);
+    const sessions = snap.docs.map((d) => {
+      const data = d.data() || {};
+      return {
+        id: d.id,
+        title: String(data.title || "Book Recommendation Chat"),
+        subject: String(data.subject || ""),
+        semester: String(data.semester || ""),
+        major: String(data.major || ""),
+        updatedAt: normalizeSessionTimestamp(data.updated_at)
+      };
+    });
+    window.bookAssistantState.sessions = sessions;
+    return sessions;
+  } catch {
+    window.bookAssistantState.sessions = [];
+    return [];
+  }
+}
+
+window.openAssistantSession = async function (sessionId) {
+  const user = window.currentUser;
+  if (!user?.uid || !sessionId) return;
+
+  try {
+    const snap = await getDoc(getAssistantSessionRef(user.uid, sessionId));
+    if (!snap.exists()) return;
+    const data = snap.data() || {};
+    const state = window.bookAssistantState;
+    state.currentSessionId = sessionId;
+    state.semester = String(data.semester || "");
+    state.major = String(data.major || "");
+    state.subject = String(data.subject || "");
+    state.university = String(data.university || "");
+    state.outlineTopics = Array.isArray(data.outlineTopics) ? data.outlineTopics.slice(0, 12).map((x) => String(x)) : [];
+    state.messages = normalizeAssistantMessages(data.messages);
+
+    renderAssistantChat();
+    renderPreviousChats();
+    await saveAssistantHistoryForUser();
+  } catch {
+    // Ignore open failures and keep current chat intact.
+  }
+};
+
+window.startNewAssistantChat = async function () {
+  const state = window.bookAssistantState;
+  clearAssistantState();
+  state.currentSessionId = createAssistantSessionId();
+  pushAssistantMessage("New chat started. Share semester, major, subject, and optional outline.");
+  upsertCurrentSessionInState();
+  renderPreviousChats();
+  await saveAssistantHistoryForUser();
+
+  const input = document.getElementById("messageInput");
+  if (input) input.focus();
+};
+
+async function saveAssistantHistoryForUser() {
+  const user = window.currentUser;
+  if (!user?.uid) return;
+
+  const state = window.bookAssistantState;
+  if (!state.currentSessionId) {
+    state.currentSessionId = createAssistantSessionId();
+  }
+
+  const normalizedMessages = normalizeAssistantMessages(state.messages);
+  const sessionTitle = getSessionTitleFromMessages(normalizedMessages, state.subject);
+
+  const payload = {
+    semester: state.semester || "",
+    major: state.major || "",
+    subject: state.subject || "",
+    university: state.university || "",
+    outlineTopics: Array.isArray(state.outlineTopics) ? state.outlineTopics.slice(0, 12) : [],
+    messages: normalizedMessages,
+    currentSessionId: state.currentSessionId,
     updated_at: serverTimestamp()
-  }, { merge: true });
+  };
 
-  localStorage.setItem("chatId", chatId);
+  try {
+    await setDoc(doc(db, ASSISTANT_HISTORY_COLLECTION, user.uid), payload, { merge: true });
+    await setDoc(getAssistantSessionRef(user.uid, state.currentSessionId), {
+      title: sessionTitle,
+      semester: payload.semester,
+      major: payload.major,
+      subject: payload.subject,
+      university: payload.university,
+      outlineTopics: payload.outlineTopics,
+      messages: normalizedMessages,
+      updated_at: serverTimestamp()
+    }, { merge: true });
+
+    upsertCurrentSessionInState();
+    renderPreviousChats();
+  } catch {
+    // Keep assistant usable even if history sync fails.
+  }
+}
+
+async function loadAssistantHistoryForUser() {
+  const user = window.currentUser;
+  if (!user?.uid) return false;
+
+  try {
+    const snap = await getDoc(doc(db, ASSISTANT_HISTORY_COLLECTION, user.uid));
+    if (!snap.exists()) return false;
+
+    const data = snap.data() || {};
+    const state = window.bookAssistantState;
+    state.semester = String(data.semester || "");
+    state.major = String(data.major || "");
+    state.subject = String(data.subject || "");
+    state.university = String(data.university || "");
+    state.outlineTopics = Array.isArray(data.outlineTopics) ? data.outlineTopics.slice(0, 12).map((x) => String(x)) : [];
+    state.messages = normalizeAssistantMessages(data.messages);
+    state.currentSessionId = String(data.currentSessionId || "");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function escapeAssistantText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function parseAssistantProfile(text) {
+  const input = String(text || "").trim();
+  const profile = {};
+
+  const semesterMatch = input.match(/(?:semester|sem)\s*[:=-]?\s*([^,;|]+)/i);
+  const majorMatch = input.match(/(?:major|department|dept)\s*[:=-]?\s*([^,;|]+)/i);
+  const subjectMatch = input.match(/(?:subject|course)\s*[:=-]?\s*([^,;|]+)/i);
+  const universityMatch = input.match(/(?:university|uni|campus)\s*[:=-]?\s*([^,;|]+)/i);
+
+  if (semesterMatch) profile.semester = semesterMatch[1].trim();
+  if (majorMatch) profile.major = majorMatch[1].trim();
+  if (subjectMatch) profile.subject = subjectMatch[1].trim();
+  if (universityMatch) profile.university = universityMatch[1].trim();
+
+  // Allow compact pattern: "5th CS Data Structures"
+  if (!profile.semester || !profile.major || !profile.subject) {
+    const compact = input.match(/^(\d{1,2}(?:st|nd|rd|th)?)[\s,-]+([a-zA-Z .&]{2,})[\s,-]+([a-zA-Z0-9 .&+\-]{2,})$/i);
+    if (compact) {
+      if (!profile.semester) profile.semester = compact[1].trim();
+      if (!profile.major) profile.major = compact[2].trim();
+      if (!profile.subject) profile.subject = compact[3].trim();
+    }
+  }
+
+  return profile;
+}
+
+function extractOutlineTopics(text) {
+  const raw = String(text || "");
+  const hasOutlineSignal = /\boutline\b|\bsyllabus\b|\btopics?\b|\bunit\b/i.test(raw) || raw.includes("\n");
+  if (!hasOutlineSignal) return [];
+
+  const normalized = raw
+    .replace(/\r/g, "\n")
+    .replace(/[•●◦▪]/g, "\n")
+    .replace(/\t/g, " ");
+
+  const chunks = normalized
+    .split(/\n|;|\|/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
+    .filter((line) => line.length >= 3 && line.length <= 80)
+    .filter((line) => !/^(semester|major|subject|university|course|outline|syllabus)$/i.test(line));
+
+  const unique = [];
+  for (const line of chunks) {
+    const key = line.toLowerCase();
+    if (!unique.some((x) => x.toLowerCase() === key)) {
+      unique.push(line);
+    }
+    if (unique.length >= 8) break;
+  }
+  return unique;
+}
+
+function detectUniversity(text) {
+  const input = String(text || "").toLowerCase();
+  if (input.includes("nust")) return "NUST";
+  if (input.includes("lums")) return "LUMS";
+  if (input.includes("uet")) return "UET";
+  if (input.includes("fast")) return "FAST-NUCES";
+  if (input.includes("iba")) return "IBA";
+  if (input.includes("comsats")) return "COMSATS";
+  if (input.includes("giki")) return "GIKI";
+  if (input.includes("punjab university") || /\bpu\b/.test(input)) return "University of the Punjab";
+  if (input.includes("karachi university") || /\bku\b/.test(input)) return "University of Karachi";
+  return "";
+}
+
+function buildBookRecommendations(profile) {
+  const subject = String(profile.subject || "").toLowerCase();
+  const semester = String(profile.semester || "");
+  const major = String(profile.major || "");
+
+  const byTopic = [
+    {
+      keys: ["calculus", "math", "mathematics"],
+      books: [
+        { title: "Thomas' Calculus", edition: "14th Edition", author: "Joel Hass, Christopher Heil, Maurice Weir" },
+        { title: "Calculus: Early Transcendentals", edition: "8th Edition", author: "James Stewart" },
+        { title: "Schaum's Outline of Calculus", edition: "7th Edition", author: "Frank Ayres Jr. and Elliott Mendelson" }
+      ]
+    },
+    {
+      keys: ["physics", "mechanics", "electromagnet"],
+      books: [
+        { title: "Fundamentals of Physics", edition: "11th Edition", author: "Halliday, Resnick and Walker" },
+        { title: "University Physics with Modern Physics", edition: "15th Edition", author: "Young and Freedman" },
+        { title: "Schaum's Outline of College Physics", edition: "12th Edition", author: "Frederick J. Bueche and Eugene Hecht" }
+      ]
+    },
+    {
+      keys: ["programming", "coding", "oop", "java", "c++", "python"],
+      books: [
+        { title: "Starting Out with Programming Logic and Design", edition: "6th Edition", author: "Tony Gaddis" },
+        { title: "Clean Code: A Handbook of Agile Software Craftsmanship", edition: "1st Edition", author: "Robert C. Martin" },
+        { title: "Head First Object-Oriented Analysis and Design", edition: "1st Edition", author: "Brett McLaughlin, Gary Pollice, Dave West" }
+      ]
+    },
+    {
+      keys: ["data structure", "algorithm"],
+      books: [
+        { title: "Data Structures and Algorithms in Java", edition: "6th Edition", author: "Goodrich, Tamassia and Goldwasser" },
+        { title: "Grokking Algorithms", edition: "2nd Edition", author: "Aditya Bhargava" },
+        { title: "Introduction to Algorithms", edition: "4th Edition", author: "Cormen, Leiserson, Rivest and Stein" }
+      ]
+    },
+    {
+      keys: ["database", "dbms", "sql"],
+      books: [
+        { title: "Database System Concepts", edition: "7th Edition", author: "Silberschatz, Korth and Sudarshan" },
+        { title: "Fundamentals of Database Systems", edition: "7th Edition", author: "Elmasri and Navathe" },
+        { title: "Learning SQL", edition: "3rd Edition", author: "Alan Beaulieu" }
+      ]
+    },
+    {
+      keys: ["operating system", "os"],
+      books: [
+        { title: "Operating System Concepts", edition: "10th Edition", author: "Silberschatz, Galvin and Gagne" },
+        { title: "Modern Operating Systems", edition: "5th Edition", author: "Andrew S. Tanenbaum and Herbert Bos" },
+        { title: "Operating Systems: Three Easy Pieces", edition: "Latest Online Edition", author: "Remzi H. Arpaci-Dusseau and Andrea C. Arpaci-Dusseau" }
+      ]
+    },
+    {
+      keys: ["chemistry", "organic", "inorganic"],
+      books: [
+        { title: "Chemistry: The Central Science", edition: "14th Edition", author: "Brown, LeMay, Bursten, Murphy, Woodward" },
+        { title: "Organic Chemistry", edition: "2nd Edition", author: "Clayden, Greeves and Warren" },
+        { title: "Schaum's Outline of Organic Chemistry", edition: "4th Edition", author: "George H. Schumm" }
+      ]
+    },
+    {
+      keys: ["accounting", "finance"],
+      books: [
+        { title: "Financial Accounting", edition: "11th Edition", author: "Libby, Libby and Hodge" },
+        { title: "Principles of Corporate Finance", edition: "13th Edition", author: "Brealey, Myers and Allen" },
+        { title: "Accounting Made Simple", edition: "2nd Edition", author: "Mike Piper" }
+      ]
+    },
+    {
+      keys: ["economics", "micro", "macro"],
+      books: [
+        { title: "Principles of Economics", edition: "9th Edition", author: "N. Gregory Mankiw" },
+        { title: "Microeconomics", edition: "9th Edition", author: "Pindyck and Rubinfeld" },
+        { title: "Macroeconomics", edition: "8th Edition", author: "Olivier Blanchard" }
+      ]
+    },
+    {
+      keys: ["stat", "statistics", "probability"],
+      books: [
+        { title: "Introduction to Probability and Statistics", edition: "15th Edition", author: "Mendenhall, Beaver and Beaver" },
+        { title: "Schaum's Outline of Probability and Statistics", edition: "4th Edition", author: "John Schiller, R. Alu Srinivasan, Murray Spiegel" },
+        { title: "Practical Statistics for Data Scientists", edition: "2nd Edition", author: "Peter Bruce, Andrew Bruce, Peter Gedeck" }
+      ]
+    }
+  ];
+
+  let selected = null;
+  for (const topic of byTopic) {
+    if (topic.keys.some((k) => subject.includes(k))) {
+      selected = topic.books;
+      break;
+    }
+  }
+
+  if (!selected) {
+    selected = [
+      { title: `${profile.subject}: Core Textbook (as per official course outline)`, edition: "Latest Edition", author: "Course Instructor Recommended Author" },
+      { title: `Schaum's Outline Series for ${profile.subject}`, edition: "Latest Available Edition", author: "McGraw-Hill Schaum Team" },
+      { title: `${profile.subject} Problem Solving and Past Papers Guide`, edition: "Recent Edition", author: "University/Department Compiled" }
+    ];
+  }
+
+  const semesterNum = parseInt(semester, 10);
+  const stageTip = Number.isFinite(semesterNum) && semesterNum <= 2
+    ? "Since you are in an early semester, start with beginner-friendly books and solved examples."
+    : "Since you are in a higher semester, combine a core textbook with one problem-solving reference.";
+
+  return {
+    intro: `Great! I have recommendations for Semester ${semester}, ${major}, subject ${profile.subject}.`,
+    books: selected,
+    tip: stageTip
+  };
+}
+
+function buildPastPaperQuestions(profile, outlineTopics) {
+  const universityPatterns = {
+    "NUST": { shortCount: 6, longCount: 3, style: "concept + scenario-based" },
+    "FAST-NUCES": { shortCount: 5, longCount: 3, style: "problem-solving heavy" },
+    "UET": { shortCount: 6, longCount: 3, style: "numerical + derivation focus" },
+    "LUMS": { shortCount: 5, longCount: 2, style: "analytical and application-oriented" },
+    "IBA": { shortCount: 5, longCount: 2, style: "concept clarity and case-based" }
+  };
+
+  const pattern = universityPatterns[profile.university] || { shortCount: 6, longCount: 3, style: "common Pakistani university pattern" };
+  const topics = outlineTopics.length ? outlineTopics : [
+    `${profile.subject} fundamentals`,
+    `core models of ${profile.subject}`,
+    `applications of ${profile.subject}`,
+    `${profile.subject} problem solving`
+  ];
+
+  const shortQuestions = [];
+  const longQuestions = [];
+
+  for (let i = 0; i < Math.min(pattern.shortCount, topics.length + 2); i++) {
+    const topic = topics[i % topics.length];
+    shortQuestions.push(`Define ${topic} and list two key points.`);
+  }
+
+  for (let i = 0; i < pattern.longCount; i++) {
+    const topic = topics[i % topics.length];
+    longQuestions.push(`Explain ${topic} with examples, diagram/flowchart, and one practical use-case.`);
+  }
+
+  const numericalKeywords = ["calculus", "physics", "stat", "statistics", "algorithm", "data structure", "finance", "economics"];
+  const isNumerical = numericalKeywords.some((k) => String(profile.subject || "").toLowerCase().includes(k));
+  const numericalQuestions = isNumerical
+    ? [
+        `Solve one complete numerical/problem from ${topics[0]} with all steps and final interpretation.`,
+        `Given a new scenario from ${topics[Math.min(1, topics.length - 1)]}, compute the result and justify assumptions.`
+      ]
+    : [
+        `Prepare one case-based analytical question from ${topics[0]} and answer with structured reasoning.`
+      ];
+
+  return {
+    university: profile.university || "Pakistani universities (general)",
+    style: pattern.style,
+    shortQuestions,
+    longQuestions,
+    numericalQuestions
+  };
+}
+
+function wantsQuestionSuggestions(text) {
+  const input = String(text || "").toLowerCase();
+  return /(question|questions|past paper|paper pattern|paper|sq|lq|mcq|exam|guess paper|important question)/i.test(input);
+}
+
+function wantsQuestionAnswers(text) {
+  const input = String(text || "").toLowerCase();
+  return /(answer these|answers? to|solve|solution|explain answer|with answers?)/i.test(input);
+}
+
+function wantsBookRecommendations(text) {
+  const input = String(text || "").toLowerCase();
+  return /(book|books|textbook|textbooks|recommend|reference|edition)/i.test(input);
+}
+
+function extractQuestionsFromText(text) {
+  const input = String(text || "").trim();
+  const byQuestionMark = input
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter((line) => /\?$/.test(line));
+
+  const byNumbered = input
+    .split(/\n/)
+    .map((line) => line.replace(/^\s*\d+[.)]\s*/, "").trim())
+    .filter((line) => line.length > 8 && /^(what|why|how|define|explain|compare|differentiate|derive|calculate)/i.test(line));
+
+  const all = [...byQuestionMark, ...byNumbered];
+  const unique = [];
+  for (const q of all) {
+    if (!unique.some((u) => u.toLowerCase() === q.toLowerCase())) unique.push(q);
+    if (unique.length >= 8) break;
+  }
+  return unique;
+}
+
+function buildQuestionAnswers(questions, profile) {
+  const subject = profile.subject || "this subject";
+  return questions.map((q) => {
+    return {
+      question: q,
+      answer: `Core answer approach for ${subject}: start with definition, explain 2-3 key concepts, add one example, and conclude with practical relevance. For exam scoring, include headings, diagram/flow when possible, and concise final summary.`
+    };
+  });
+}
+
+function formatBooksOnlyReply(profile, rec) {
+  const lines = [];
+  lines.push("1. Recommended Books (This Query)");
+  rec.books.forEach((book, i) => {
+    lines.push(`${i + 1}. ${book.title} | ${book.edition} | Author(s): ${book.author}`);
+  });
+  lines.push("");
+  lines.push("2. Quick Study Tip");
+  lines.push(`- ${rec.tip}`);
+  lines.push("- If you want paper questions, ask: Generate SQ/LQ/MCQ from my outline.");
+  return lines.join("\n");
+}
+
+function formatQuestionsOnlyReply(pastPaper, outlineTopics) {
+  const lines = [];
+  lines.push("1. Past-Paper Pattern");
+  lines.push(`- University Pattern: ${pastPaper.university}`);
+  lines.push(`- Style: ${pastPaper.style}`);
+  lines.push(outlineTopics.length
+    ? `- Topics used: ${outlineTopics.join(", ")}`
+    : "- Topics used: subject-level defaults (outline not provided)");
+  lines.push("");
+  lines.push("2. Suggested SQ");
+  pastPaper.shortQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+  lines.push("");
+  lines.push("3. Suggested LQ");
+  pastPaper.longQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+  lines.push("");
+  lines.push("4. Suggested Numerical/Analytical");
+  pastPaper.numericalQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+  lines.push("");
+  lines.push("5. Need Answers?");
+  lines.push("- Ask: Answer these questions, and I will provide point-wise answers.");
+  return lines.join("\n");
+}
+
+function formatQuestionAnswersReply(qaPairs) {
+  const lines = [];
+  lines.push("1. Answers (Point-wise)");
+  qaPairs.forEach((item, idx) => {
+    lines.push("");
+    lines.push(`${idx + 1}. Question: ${item.question}`);
+    lines.push(`- Answer: ${item.answer}`);
+  });
+  return lines.join("\n");
+}
+
+function formatAssistantReply(profile, rec, pastPaper, outlineTopics, includeQuestions) {
+  const lines = [];
+  lines.push("1. Student Profile");
+  lines.push(`- Semester: ${profile.semester}`);
+  lines.push(`- Major: ${profile.major}`);
+  lines.push(`- Subject: ${profile.subject}`);
+  lines.push(`- University Pattern: ${pastPaper.university}`);
+  lines.push("");
+
+  lines.push("2. Recommended Books (Full Names + Editions)");
+  rec.books.forEach((book, i) => {
+    lines.push(`${i + 1}. ${book.title} | ${book.edition} | Author(s): ${book.author}`);
+  });
+  lines.push("");
+
+  lines.push("3. Study Strategy");
+  lines.push(`- ${rec.tip}`);
+  lines.push("- Cover one textbook chapter, then solve 10-15 mixed practice questions.");
+  lines.push("");
+
+  if (!includeQuestions) {
+    lines.push("4. Questions On-Demand");
+    lines.push("- I will generate SQ, LQ, MCQ, and past-paper style questions when you ask.");
+    lines.push("- Ask like: Generate questions from this outline, or Give me SQ/LQ for this subject.");
+    lines.push("");
+
+    lines.push("5. To Improve Accuracy");
+    lines.push("- Paste your official subject outline with unit names.");
+    lines.push("- Mention your exact university for targeted paper patterning.");
+    return lines.join("\n");
+  }
+
+  lines.push("4. Past-Paper Trend Scan (Pattern-Based)");
+  lines.push(`- Scanned Pattern: ${pastPaper.style}`);
+  if (outlineTopics.length) {
+    lines.push(`- Outline Topics Detected: ${outlineTopics.join(", ")}`);
+  } else {
+    lines.push("- Outline Topics Detected: Not provided, using subject-level defaults.");
+  }
+  lines.push("");
+
+  lines.push("5. Suggested Short Questions");
+  pastPaper.shortQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+  lines.push("");
+
+  lines.push("6. Suggested Long Questions");
+  pastPaper.longQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+  lines.push("");
+
+  lines.push("7. Suggested Numerical/Analytical Questions");
+  pastPaper.numericalQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+  lines.push("");
+
+  lines.push("8. To Improve Accuracy");
+  lines.push("- Paste your official subject outline with unit names.");
+  lines.push("- Mention your exact university for more targeted paper patterning.");
+
+  return lines.join("\n");
+}
+
+function renderAssistantChat(options = {}) {
+  const forceToBottom = !!options.forceToBottom;
+  const container = document.getElementById("chatBox");
+  if (!container) return;
+
+  const previousTop = container.scrollTop;
+  const previousHeight = container.scrollHeight;
+  const wasNearBottom = (previousHeight - (previousTop + container.clientHeight)) < 40;
+
+  const state = window.bookAssistantState;
+  const rows = [];
+
+  if (!state.messages.length) {
+    rows.push(`
+      <div class="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40 p-3 mb-3">
+        <p class="text-sm text-blue-800 dark:text-blue-200 font-semibold mb-1">Book AI Assistant</p>
+        <p class="text-sm text-slate-700 dark:text-slate-200">Tell me your semester, major, and subject to get personalized book recommendations.</p>
+        <p class="text-xs text-slate-500 mt-2">Example: Semester: 4, Major: Computer Science, Subject: Data Structures</p>
+      </div>
+    `);
+  }
+
+  state.messages.forEach((msg) => {
+    const isUser = msg.role === "user";
+    rows.push(`
+      <div class="mb-2 flex ${isUser ? "justify-end" : "justify-start"}">
+        <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-line leading-relaxed ${isUser ? "bg-primary text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"}">
+          ${escapeAssistantText(msg.text)}
+        </div>
+      </div>
+    `);
+  });
+
+  container.innerHTML = rows.join("");
+  if (forceToBottom || wasNearBottom) {
+    container.scrollTop = container.scrollHeight;
+  } else {
+    container.scrollTop = previousTop;
+  }
+}
+
+function pushAssistantMessage(text) {
+  window.bookAssistantState.messages.push({ role: "assistant", text });
+  renderAssistantChat();
+  saveAssistantHistoryForUser();
+}
+
+window.startChat = async function (listingId) {
+  const state = window.bookAssistantState;
+  if (!state.currentSessionId) {
+    state.currentSessionId = createAssistantSessionId();
+  }
+  const listing = products.find((p) => String(p.id) === String(listingId));
+  if (listing && !state.subject) {
+    state.subject = listing.title;
+  }
 
   const chatTitle = document.getElementById("chatStatus");
   if (chatTitle) {
-    chatTitle.textContent = "Chat Active";
+    chatTitle.textContent = "AI assistant is ready for everyone";
   }
 
-  if (typeof window.loadChat === "function") {
-    window.loadChat();
+  if (!state.messages.length) {
+    pushAssistantMessage("Hi! I can recommend books in clean points. Share semester, major, subject, and optionally university + outline.");
+  }
+
+  const input = document.getElementById("messageInput");
+  if (input) {
+    input.focus();
+    input.placeholder = "Semester: 4, Major: CS, Subject: Data Structures";
   }
 };
 
 window.sendMessage = async function () {
+  const input = document.getElementById("messageInput");
+  const text = (input?.value || "").trim();
+  if (!text) return;
+  if (input) input.value = "";
 
-  const text = document.getElementById("messageInput").value;
-  const chatId = localStorage.getItem("chatId");
+  const state = window.bookAssistantState;
+  if (!state.currentSessionId) {
+    state.currentSessionId = createAssistantSessionId();
+  }
+  state.messages.push({ role: "user", text });
+  renderAssistantChat({ forceToBottom: true });
+  await saveAssistantHistoryForUser();
 
-  if (!text || !window.currentUser || !chatId) {
-    if (!chatId) {
-      if (typeof window.showToast === "function") {
-        window.showToast("Start chat from a listing first.", "warning");
-      } else {
-        alert("Start chat from a listing first.");
-      }
-    }
+  const resetWanted = /\b(reset|clear|start over|new)\b/i.test(text);
+  if (resetWanted) {
+    clearAssistantState();
+    state.currentSessionId = createAssistantSessionId();
+    pushAssistantMessage("Done. Profile reset. Please share semester, major, and subject again.");
+    await saveAssistantHistoryForUser();
     return;
   }
 
-  await addDoc(collection(db, "messages"), {
-    chatId,
-    text: text,
-    sender: window.currentUser.uid,
-    senderEmail: window.currentUser.email,
-    time: serverTimestamp()
-  });
+  const parsed = parseAssistantProfile(text);
+  if (parsed.semester) state.semester = parsed.semester;
+  if (parsed.major) state.major = parsed.major;
+  if (parsed.subject) state.subject = parsed.subject;
+  if (parsed.university) state.university = parsed.university;
+
+  const detectedUniversity = detectUniversity(text);
+  if (!state.university && detectedUniversity) {
+    state.university = detectedUniversity;
+  }
+
+  const topics = extractOutlineTopics(text);
+  if (topics.length) {
+    state.outlineTopics = topics;
+  }
+
+  const missing = [];
+  if (!state.semester) missing.push("semester");
+  if (!state.major) missing.push("major");
+  if (!state.subject) missing.push("subject");
+
+  if (missing.length) {
+    pushAssistantMessage(`Please also share your ${missing.join(", ")} so I can give recommendations and past-paper style questions in proper points.`);
+  } else {
+    const includeQuestions = wantsQuestionSuggestions(text);
+    const includeQuestionAnswers = wantsQuestionAnswers(text);
+    const includeBooks = wantsBookRecommendations(text) || (!includeQuestions && !includeQuestionAnswers);
+
+    const rec = buildBookRecommendations(state);
+    const pastPaper = buildPastPaperQuestions(state, state.outlineTopics || []);
+
+    if (includeQuestionAnswers) {
+      const explicitQuestions = extractQuestionsFromText(text);
+      const questionPool = explicitQuestions.length
+        ? explicitQuestions
+        : [...pastPaper.shortQuestions.slice(0, 2), ...pastPaper.longQuestions.slice(0, 1)];
+      const qaPairs = buildQuestionAnswers(questionPool, state);
+      pushAssistantMessage(formatQuestionAnswersReply(qaPairs));
+    } else if (includeQuestions && !includeBooks) {
+      pushAssistantMessage(formatQuestionsOnlyReply(pastPaper, state.outlineTopics || []));
+    } else if (includeBooks && !includeQuestions) {
+      pushAssistantMessage(formatBooksOnlyReply(state, rec));
+    } else {
+      // Mixed intent: keep response scoped to current query with compact sections only.
+      const lines = [];
+      lines.push(formatBooksOnlyReply(state, rec));
+      lines.push("");
+      lines.push(formatQuestionsOnlyReply(pastPaper, state.outlineTopics || []));
+      pushAssistantMessage(lines.join("\n"));
+    }
+  }
 
   if (typeof window.logUserActivity === "function") {
-    window.logUserActivity("Sent a chat message");
+    window.logUserActivity("Used AI book recommender");
   }
 
-  document.getElementById("messageInput").value = "";
+  await saveAssistantHistoryForUser();
 };
 
-window.loadChat = function () {
-
-  if (typeof window.chatUnsubscribe === 'function') {
-    window.chatUnsubscribe();
-    window.chatUnsubscribe = null;
+window.loadChat = async function () {
+  const chatTitle = document.getElementById("chatStatus");
+  if (chatTitle) {
+    chatTitle.textContent = window.currentUser ? "AI assistant is ready (history synced)" : "AI assistant is ready for everyone";
   }
 
-  const chatId = localStorage.getItem("chatId");
-  const container = document.getElementById("chatBox");
-  if (!container) return;
-
-  if (!chatId) {
-    container.innerHTML = '<div class="text-sm text-slate-500">Open any listing and click Contact Seller to start private chat.</div>';
-    return;
-  }
-
-  const q = query(collection(db, "messages"), where("chatId", "==", chatId), orderBy("time"));
-
-  window.chatUnsubscribe = onSnapshot(q, (snapshot) => {
-
-    container.innerHTML = "";
-
-    if (snapshot.empty) {
-      container.innerHTML = '<div class="text-sm text-slate-500">No messages yet. Say hello!</div>';
+  if (window.currentUser?.uid) {
+    await loadAssistantHistoryForUser();
+    await loadAssistantSessionsForUser();
+    if (!window.bookAssistantState.sessions.length && window.bookAssistantState.messages.length) {
+      if (!window.bookAssistantState.currentSessionId) {
+        window.bookAssistantState.currentSessionId = createAssistantSessionId();
+      }
+      await saveAssistantHistoryForUser();
+      await loadAssistantSessionsForUser();
+    }
+    if (!window.bookAssistantState.currentSessionId && window.bookAssistantState.sessions.length) {
+      window.bookAssistantState.currentSessionId = window.bookAssistantState.sessions[0].id;
+      await window.openAssistantSession(window.bookAssistantState.currentSessionId);
       return;
     }
+  } else {
+    // Prevent previous logged-in user's memory from showing to guests.
+    clearAssistantState();
+    window.bookAssistantState.currentSessionId = "";
+    window.bookAssistantState.sessions = [];
+  }
 
-    const rows = snapshot.docs.map((doc) => {
-      const msg = doc.data();
-      const senderLabel = msg.sender === window.currentUser?.uid ? "You" : "Them";
-
-      return `
-        <div class="mb-2 text-sm text-slate-700 dark:text-slate-200">
-          <strong class="font-semibold">${senderLabel}</strong>: ${msg.text}
-        </div>
-      `;
-    });
-
-    container.innerHTML = rows.join("");
-
-  });
+  renderAssistantChat();
+  renderPreviousChats();
 };
 
 window.onload = () => {
@@ -1233,12 +1945,20 @@ window.onload = () => {
         </div>
 
         <div class="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5 shadow-sm">
-          <h3 class="font-syne font-bold text-xl mb-3">Campus Chat</h3>
-          <p id="chatStatus" class="text-xs text-slate-500 mb-2">Private chat not selected</p>
+          <h3 class="font-syne font-bold text-xl mb-3">Book AI Assistant</h3>
+          <p id="chatStatus" class="text-xs text-slate-500 mb-2">AI assistant is ready for everyone</p>
           <div id="chatBox" class="h-64 overflow-y-scroll border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/50"></div>
           <div class="flex gap-2 mt-3">
-            <input id="messageInput" type="text" placeholder="Type message" class="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
-            <button onclick="sendMessage()" class="px-5 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">Send</button>
+            <input id="messageInput" type="text" placeholder="Semester: 4, Major: CS, Subject: Data Structures" onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}" class="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            <button onclick="sendMessage()" class="px-5 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition">Ask</button>
+          </div>
+
+          <div class="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 p-3">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Previous Chats</p>
+              <button onclick="startNewAssistantChat()" class="text-xs px-2.5 py-1.5 rounded-lg bg-primary text-white hover:bg-blue-700 transition">New Chat</button>
+            </div>
+            <div id="previousChatsList" class="max-h-44 overflow-y-auto pr-1"></div>
           </div>
         </div>
       </div>
