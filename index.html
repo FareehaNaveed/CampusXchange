@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CampusXchange — Exchange Smart, Live Smart</title>  
-  <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png?v=5" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-64.png?v=5" />
-  <link rel="shortcut icon" type="image/png" href="favicon-64.png?v=5" />
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon-cropped.png?v=5" />
+  <link rel="icon" href="/favicon.ico?v=6" sizes="any" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png?v=6" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-64.png?v=6" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=6" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-cropped.png?v=6" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -378,6 +379,8 @@ function syncAuthUiState(user) {
   if (!loginBtn || !avatarWrap) return;
 
   if (user) {
+    // Force-hide login button at all breakpoints (hidden + md:flex can still show on desktop).
+    loginBtn.style.setProperty("display", "none", "important");
     loginBtn.classList.add("hidden");
     avatarWrap.classList.remove("hidden");
     if (avatarBtn) {
@@ -385,6 +388,7 @@ function syncAuthUiState(user) {
       avatarBtn.textContent = (email.slice(0, 2) || "U").toUpperCase();
     }
   } else {
+    loginBtn.style.removeProperty("display");
     loginBtn.classList.remove("hidden");
     avatarWrap.classList.add("hidden");
   }
