@@ -119,6 +119,22 @@
       padding: 4px 12px; border-radius:999px;
     }
 
+    /* ── Reputation badges (visible, modern pills) ── */
+    .cx-reputation-badge { display:inline-flex; align-items:center; gap:8px; font-weight:700; border-radius:999px; box-shadow: 0 8px 24px rgba(2,6,23,0.12); align-self:center; }
+    .cx-reputation-badge i { font-size:0.85rem; }
+    .cx-badge-explorer { background: linear-gradient(180deg,#f3f4f6,#e5e7eb); color:#374151; border:1px solid rgba(15,23,42,0.06); }
+    .cx-badge-active { background: linear-gradient(180deg,#60a5fa,#3b82f6); color:#fff; border:1px solid rgba(59,130,246,0.12); box-shadow: 0 10px 30px rgba(59,130,246,0.14); }
+    .cx-badge-pro { background: linear-gradient(90deg,#FFD973,#FFC107); color:#3b2e00; border:1px solid rgba(255,193,7,0.12); box-shadow: 0 10px 28px rgba(255,193,7,0.10); }
+    .cx-badge-elite { background: linear-gradient(135deg,#7c3aed 0%, #a78bfa 100%); color:#fff; border:1px solid rgba(139,92,246,0.14); box-shadow: 0 14px 36px rgba(124,58,237,0.18); }
+    .cx-badge-top { background: linear-gradient(180deg,#fff7ed,#fff1d6); color:#92400e; border:1px solid rgba(255,193,7,0.08); }
+
+    /* ── Profile overview card ── */
+    .profile-overview { display:flex; gap:16px; align-items:center; padding:18px; border-radius:16px; border:1px solid rgba(15,23,42,0.06); background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.45)); backdrop-filter: blur(8px); }
+    .profile-overview .avatar { width:72px; height:72px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:#fff; background: linear-gradient(180deg,#111827,#2563eb); box-shadow: 0 12px 32px rgba(37,99,235,0.14); }
+    .profile-stats { display:flex; gap:12px; margin-top:6px; }
+    .profile-stat { text-align:center; min-width:68px; }
+    .profile-stat .num { font-weight:800; font-size:1rem; }
+
     /* ── Scrollbar ── */
     ::-webkit-scrollbar { width:6px; }
     ::-webkit-scrollbar-track { background:transparent; }
@@ -232,6 +248,87 @@
       background:
         radial-gradient(circle at center, rgba(251,191,36,.26), rgba(251,191,36,0)),
         repeating-radial-gradient(circle at center, rgba(148,163,184,.2) 0 1px, transparent 1px 8px);
+    }
+
+    /* ── WhatsApp floating button ── */
+    @keyframes waPulse {
+      0%, 100% { box-shadow: 0 14px 30px rgba(37, 211, 102, 0.34), 0 0 0 0 rgba(37, 211, 102, 0.22); }
+      50% { box-shadow: 0 18px 36px rgba(37, 211, 102, 0.42), 0 0 0 10px rgba(37, 211, 102, 0); }
+    }
+    .wa-float {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 100000;
+      width: 58px;
+      height: 58px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #25D366 0%, #1EBE57 100%);
+      color: #fff;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.22);
+      animation: waPulse 2.6s ease-in-out infinite;
+      transition: transform .25s cubic-bezier(.23,1,.32,1), filter .25s cubic-bezier(.23,1,.32,1);
+      box-shadow: 0 14px 30px rgba(37, 211, 102, 0.34);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wa-float:hover,
+    .wa-float:focus-visible {
+      transform: translateY(-2px) scale(1.08);
+      filter: brightness(1.03);
+      outline: none;
+    }
+    .wa-float i {
+      font-size: 1.9rem;
+      line-height: 1;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    }
+    .wa-tooltip {
+      position: absolute;
+      right: 70px;
+      top: 50%;
+      transform: translateY(-50%) translateX(8px);
+      white-space: nowrap;
+      padding: 9px 12px;
+      border-radius: 9999px;
+      background: rgba(8, 15, 28, 0.92);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+      box-shadow: 0 14px 26px rgba(0,0,0,0.22);
+    }
+    .wa-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: -5px;
+      width: 10px;
+      height: 10px;
+      transform: translateY(-50%) rotate(45deg);
+      background: rgba(8, 15, 28, 0.92);
+      border-radius: 2px;
+    }
+    .wa-float:hover .wa-tooltip,
+    .wa-float:focus-visible .wa-tooltip {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+    }
+    @media (max-width: 640px) {
+      .wa-float {
+        width: 54px;
+        height: 54px;
+        right: 16px;
+        bottom: 16px;
+      }
+      .wa-float i { font-size: 1.7rem; }
+      .wa-tooltip { display: none; }
     }
 
     /* ── Auth modal animations ── */
@@ -422,6 +519,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth();
 const db = getFirestore();
+window.firebaseGetDocs = getDocs;
 const storage = getStorage();
 let currentUser = null;
 window.currentUser = null;
@@ -436,6 +534,12 @@ window.firebaseGetUserProfile = async function (uid) {
   if (!snap.exists()) return { isPro: false };
   return snap.data();
 };
+
+function firestoreGetDocsCompat(...args) {
+  const fetchDocs = window.firebaseGetDocs || (typeof getDocs === 'function' ? getDocs : null);
+  if (!fetchDocs) throw new Error('Firestore getDocs is unavailable');
+  return fetchDocs(...args);
+}
 
 window.firebaseUpgradePro = async function (uid) {
   if (!uid) throw new Error("User not found");
@@ -469,25 +573,79 @@ function isAdminUser(user) {
 function renderUserInfo(user) {
   const userBox = document.getElementById("profileUserCard");
   if (!userBox) return;
-
   if (!user) {
-    userBox.innerHTML = '<span class="text-slate-500">Not logged in. Please sign in from the navbar.</span>';
+    userBox.innerHTML = '<span class="text-slate-500">User not logged in</span>';
     return;
   }
 
-  const initials = getInitialsFromEmail(user.email);
-  const adminChip = isAdminUser(user)
-    ? '<span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">ADMIN</span>'
-    : '';
-
+  const initials = getUserInitials(user);
+  const username = user.displayName || (user.email || '').split('@')[0] || 'User';
+  const email = user.email || '';
+  const meta = getUserMeta(user);
+  // render basic overview immediately
   userBox.innerHTML = `
-    <div class="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-      <div class="w-8 h-8 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">${initials}</div>
-      <div class="text-sm text-slate-700 dark:text-slate-200">
-        Logged in as: <span class="font-semibold">${user.email}</span>${adminChip}
+    <div class="profile-overview glass">
+      <div class="avatar">${initials}</div>
+      <div class="flex-1">
+        <div class="flex items-center gap-3">
+          <div class="text-lg font-bold text-slate-800 dark:text-slate-100">${escapeHtml(username)}</div>
+          <div id="profile-badge">${renderReputationBadge(getUserReputationSummary(user).tier)}</div>
+        </div>
+        <div class="text-sm text-slate-600 dark:text-slate-300">${email ? `<a href=\"mailto:${escapeHtml(email)}\" class=\"underline\">${escapeHtml(email)}</a>` : '<span class="text-slate-400">Email not available</span>'}</div>
+        <div class="profile-stats">
+          <div class="profile-stat"><div class="num">${meta.salesCount || 0}</div><div class="text-xs text-slate-500">Sales</div></div>
+          <div class="profile-stat"><div class="num">${meta.purchasesCount || 0}</div><div class="text-xs text-slate-500">Purchases</div></div>
+          <div class="profile-stat"><div class="num">${meta.wishlistCount || 0}</div><div class="text-xs text-slate-500">Wishlist</div></div>
+        </div>
       </div>
     </div>
   `;
+
+  // Fetch profile details (joined date, nicer displayName) and update badge/stats if available
+  if (user.uid && typeof window.firebaseGetUserProfile === 'function') {
+    window.firebaseGetUserProfile(user.uid).then((profile) => {
+      try {
+        const joined = profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : (profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : '');
+        const badgeEl = document.getElementById('profile-badge');
+        const updatedName = profile?.displayName || profile?.name || username;
+        const avatarEl = userBox.querySelector('.avatar');
+        if (avatarEl) avatarEl.textContent = getUserInitials({ email: profile?.email || user.email });
+        if (badgeEl && profile) {
+          const rep = getUserReputationSummary(user, { salesCount: profile.sales || 0, purchasesCount: profile.purchases || 0, wishlistCount: profile.wishlist || 0, reviewCount: profile.reviewCount || 0 });
+          badgeEl.innerHTML = renderReputationBadge(rep.tier);
+        }
+        const nameEl = userBox.querySelector('.text-lg');
+        if (nameEl) nameEl.textContent = updatedName;
+        if (joined) {
+          const joinedEl = document.createElement('div');
+          joinedEl.className = 'text-xs text-slate-400 mt-1';
+          joinedEl.textContent = `Joined: ${joined}`;
+          userBox.querySelector('.flex-1').appendChild(joinedEl);
+        }
+      } catch (e) {
+        // ignore profile display errors
+      }
+    }).catch(() => {});
+  }
+
+  // Also update the compact profileInfo header if present (ensure profile page updates quickly)
+  try {
+    const info = document.getElementById('profileInfo');
+    if (info) {
+      const compact = `
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full bg-primary text-white font-bold flex items-center justify-center">${initials}</div>
+          <div>
+            <div class="font-semibold text-slate-800 dark:text-slate-100">${escapeHtml(username)}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">${email ? escapeHtml(email) : 'Email not available'}</div>
+          </div>
+          <div class="ml-auto">${renderReputationBadge(getUserReputationSummary(user).tier)}</div>
+        </div>
+      `;
+      // preserve existing info content below the header when possible
+      info.innerHTML = compact + info.innerHTML;
+    }
+  } catch (e) { /* ignore */ }
 }
 
 // 🔐 SIGN UP
@@ -585,9 +743,19 @@ onAuthStateChanged(auth, (user) => {
     window.loadChat();
   }
 
+  // Update profile UI when auth state changes
+  if (typeof window.renderProfilePanel === 'function') {
+    try { window.renderProfilePanel(); } catch (e) { /* ignore */ }
+  }
+  if (typeof window.loadProfile === 'function') {
+    try { window.loadProfile(); } catch (e) { /* ignore */ }
+  }
+
   if (user) {
     ensureUserRecord(user).catch(() => {});
   }
+  // Mark auth initialization complete so profile rendering can depend on it
+  try { window.__authReady = true; } catch (e) {}
 });
 
 // 📦 UPLOAD LISTING
@@ -646,7 +814,7 @@ window.uploadListing = async () => {
 
 window.firebaseListListings = async function () {
   const q = query(collection(db, "listings"), where("status", "==", "approved"));
-  const snapshot = await getDocs(q);
+  const snapshot = await firestoreGetDocsCompat(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 };
 
@@ -661,7 +829,7 @@ window.firebaseAddListing = async function (payload) {
 
 window.firebaseListMyListings = async function (uid) {
   if (!uid) return [];
-  const snapshot = await getDocs(collection(db, "listings"));
+  const snapshot = await firestoreGetDocsCompat(collection(db, "listings"));
   return snapshot.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .filter((item) => (item.userId || item.user_id) === uid);
@@ -670,7 +838,7 @@ window.firebaseListMyListings = async function (uid) {
 // 📥 LOAD LISTINGS
 window.loadListings = async () => {
 
-  const querySnapshot = await getDocs(collection(db, "listings"));
+  const querySnapshot = await firestoreGetDocsCompat(collection(db, "listings"));
   const container = document.getElementById("listings");
   if (!container) return;
 
@@ -740,7 +908,7 @@ window.loadAdminListings = async function () {
   const pendingTab = document.getElementById("adminFilterPending");
   const approvedTab = document.getElementById("adminFilterApproved");
 
-  const allSnapshot = await getDocs(collection(db, "listings"));
+  const allSnapshot = await firestoreGetDocsCompat(collection(db, "listings"));
   const allListings = allSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   const pendingListings = allListings.filter((item) => (item.status || "pending") === "pending");
   const approvedListings = allListings.filter((item) => item.status === "approved");
@@ -968,7 +1136,7 @@ async function loadAssistantSessionsForUser() {
 
   try {
     const q = query(collection(db, ASSISTANT_HISTORY_COLLECTION, user.uid, ASSISTANT_SESSIONS_SUBCOLLECTION), orderBy("updated_at", "desc"));
-    const snap = await getDocs(q);
+    const snap = await firestoreGetDocsCompat(q);
     const sessions = snap.docs.map((d) => {
       const data = d.data() || {};
       return {
@@ -2360,6 +2528,11 @@ window.onload = () => {
           <h2 class="font-syne font-bold text-xl mb-3">My Listings</h2>
           <div id="myListings" class="space-y-2 text-sm text-slate-600 dark:text-slate-300"></div>
         </div>
+
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-5">
+          <h2 class="font-syne font-bold text-xl mb-3">My Wishlist</h2>
+          <div id="myWishlist" class="space-y-2 text-sm text-slate-600 dark:text-slate-300"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -2957,6 +3130,259 @@ function setUserMeta(user, patch) {
   setUserStore(store);
 }
 
+const marketplaceFeatureCache = {
+  reviews: null,
+  reviewsLoadedAt: 0,
+  wishlistByUser: new Map(),
+  wishlistLoadedAt: new Map(),
+};
+
+function invalidateMarketplaceCache(userId) {
+  marketplaceFeatureCache.reviews = null;
+  marketplaceFeatureCache.reviewsLoadedAt = 0;
+  if (!userId) {
+    marketplaceFeatureCache.wishlistByUser.clear();
+    marketplaceFeatureCache.wishlistLoadedAt.clear();
+    return;
+  }
+  marketplaceFeatureCache.wishlistByUser.delete(userId);
+  marketplaceFeatureCache.wishlistLoadedAt.delete(userId);
+}
+
+function escapeJs(value) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+}
+
+function getReputationTier(totalActivities) {
+  const total = Number(totalActivities || 0);
+  if (total >= 30) {
+    return {
+      name: 'Elite X Member',
+      shortName: 'Elite X',
+      className: 'cx-badge-elite',
+      icon: 'fa-solid fa-gem',
+      perks: 'Premium recognition, featured profile, early access, special discounts',
+    };
+  }
+  if (total >= 15) {
+    return {
+      name: 'Campus Pro',
+      shortName: 'Campus Pro',
+      className: 'cx-badge-pro',
+      icon: 'fa-solid fa-crown',
+      perks: 'Priority listing visibility and future discounts',
+    };
+  }
+  if (total >= 5) {
+    return {
+      name: 'Active Trader',
+      shortName: 'Active Trader',
+      className: 'cx-badge-active',
+      icon: 'fa-solid fa-bolt',
+      perks: 'Growing presence and trusted marketplace activity',
+    };
+  }
+  return {
+    name: 'Explorer',
+    shortName: 'Explorer',
+    className: 'cx-badge-explorer',
+    icon: 'fa-regular fa-compass',
+    perks: 'New user starting badge',
+  };
+}
+
+function renderReputationBadge(summary, compact = false) {
+  if (!summary) return '';
+  const extraClass = compact ? 'text-[10px] px-2 py-1' : 'text-xs px-3 py-1.5';
+  return `
+    <span class="cx-reputation-badge inline-flex items-center gap-1.5 rounded-full border font-bold uppercase tracking-wide ${summary.className} ${extraClass}">
+      <i class="${summary.icon}"></i>
+      ${escapeHtml(summary.shortName)}
+    </span>
+  `;
+}
+
+function renderTopRatedBadge() {
+  return '<span class="cx-badge-top inline-flex items-center gap-1 rounded-full border text-[10px] px-2 py-1 font-bold uppercase tracking-wide"><i class="fa-solid fa-award"></i> Top Rated Seller</span>';
+}
+
+function renderRatingStars(avgRating, compact = false) {
+  const rating = Number(avgRating || 0);
+  const active = Math.max(0, Math.min(5, Math.round(rating)));
+  const starSize = compact ? 'text-[11px]' : 'text-sm';
+  let stars = '';
+  for (let index = 1; index <= 5; index += 1) {
+    const filled = index <= active;
+    stars += `<i class="fa-solid fa-star ${starSize} ${filled ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}"></i>`;
+  }
+  return `<span class="inline-flex items-center gap-0.5">${stars}</span>`;
+}
+
+async function getReviewIndex(force = false) {
+  const now = Date.now();
+  if (!force && marketplaceFeatureCache.reviews && (now - marketplaceFeatureCache.reviewsLoadedAt) < 30000) {
+    return marketplaceFeatureCache.reviews;
+  }
+
+  const fetchDocs = window.firebaseGetDocs || (typeof getDocs === 'function' ? getDocs : null);
+  if (!fetchDocs) {
+    throw new Error('Firestore getDocs is unavailable');
+  }
+  const snapshot = await fetchDocs(collection(db, 'reviews'));
+  const bySeller = new Map();
+  const byBuyer = new Map();
+
+  snapshot.docs.forEach((item) => {
+    const data = item.data() || {};
+    const sellerId = String(data.sellerId || '').trim();
+    const buyerId = String(data.buyerId || '').trim();
+    const rating = Number(data.rating || 0);
+
+    if (sellerId) {
+      const currentSeller = bySeller.get(sellerId) || { total: 0, count: 0, avg: 0 };
+      currentSeller.total += rating;
+      currentSeller.count += 1;
+      currentSeller.avg = currentSeller.count ? currentSeller.total / currentSeller.count : 0;
+      bySeller.set(sellerId, currentSeller);
+    }
+
+    if (buyerId) {
+      const currentBuyer = byBuyer.get(buyerId) || { count: 0 };
+      currentBuyer.count += 1;
+      byBuyer.set(buyerId, currentBuyer);
+    }
+  });
+
+  const result = { bySeller, byBuyer };
+  marketplaceFeatureCache.reviews = result;
+  marketplaceFeatureCache.reviewsLoadedAt = now;
+  return result;
+}
+
+async function getWishlistEntries(userId, force = false) {
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
+
+  const now = Date.now();
+  const cachedAt = marketplaceFeatureCache.wishlistLoadedAt.get(uid) || 0;
+  if (!force && marketplaceFeatureCache.wishlistByUser.has(uid) && (now - cachedAt) < 30000) {
+    return marketplaceFeatureCache.wishlistByUser.get(uid);
+  }
+
+  const fetchDocs = window.firebaseGetDocs || (typeof getDocs === 'function' ? getDocs : null);
+  if (!fetchDocs) {
+    throw new Error('Firestore getDocs is unavailable');
+  }
+  const q = query(collection(db, 'wishlist'), where('userId', '==', uid));
+  const snapshot = await fetchDocs(q);
+  const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  marketplaceFeatureCache.wishlistByUser.set(uid, items);
+  marketplaceFeatureCache.wishlistLoadedAt.set(uid, now);
+  return items;
+}
+
+function getUserReputationSummary(user, metrics = {}) {
+  const meta = getUserMeta(user);
+  const activityCount = Number(metrics.activityCount ?? meta.activity.length ?? 0);
+  const salesCount = Number(metrics.salesCount ?? 0);
+  const purchasesCount = Number(metrics.purchasesCount ?? 0);
+  const wishlistCount = Number(metrics.wishlistCount ?? 0);
+  const reviewCount = Number(metrics.reviewCount ?? 0);
+  const totalActivities = activityCount + salesCount + purchasesCount + wishlistCount + reviewCount;
+  const tier = getReputationTier(totalActivities);
+
+  return {
+    activityCount,
+    salesCount,
+    purchasesCount,
+    wishlistCount,
+    reviewCount,
+    totalActivities,
+    tier,
+  };
+}
+
+function setReviewStars(rating) {
+  const value = Math.max(1, Math.min(5, Number(rating) || 1));
+  window.__sellerReviewRating = value;
+  document.querySelectorAll('[data-review-star]').forEach((button) => {
+    const starValue = Number(button.getAttribute('data-review-star') || '0');
+    button.classList.toggle('active', starValue <= value);
+  });
+}
+window.setReviewStars = setReviewStars;
+
+window.openSellerReviewModal = function (sellerId, sellerName, listingId) {
+  openModal('seller-review', { sellerId, sellerName, listingId });
+};
+
+window.submitSellerReview = async function () {
+  if (!window.currentUser?.uid) {
+    showToast('Please sign in to leave a review.', 'warning');
+    return;
+  }
+
+  const context = window.__sellerReviewContext || {};
+  const rating = Number(window.__sellerReviewRating || 5);
+  const reviewText = document.getElementById('seller-review-text')?.value.trim() || '';
+
+  if (!context.sellerId) {
+    showToast('Seller details are missing.', 'error');
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, 'reviews'), {
+      sellerId: context.sellerId,
+      buyerId: window.currentUser.uid,
+      listingId: context.listingId || '',
+      rating,
+      reviewText,
+      timestamp: serverTimestamp(),
+    });
+
+    invalidateMarketplaceCache();
+    closeModal();
+    showToast('⭐ Review submitted successfully.', 'success');
+    if (typeof window.renderProducts === 'function') window.renderProducts(currentFilter, currentSearchQuery);
+    if (typeof window.loadProfile === 'function') window.loadProfile();
+  } catch {
+    showToast('❌ Unable to save review.', 'error');
+  }
+};
+
+window.toggleWishlistListing = async function (listingId) {
+  if (!window.currentUser?.uid) {
+    showToast('Please sign in to save listings.', 'warning');
+    return;
+  }
+
+  const uid = window.currentUser.uid;
+  const q = query(collection(db, 'wishlist'), where('userId', '==', uid));
+  const snapshot = await firestoreGetDocsCompat(q);
+  const matchingEntry = snapshot.docs.find((item) => String(item.data()?.listingId || '') === String(listingId));
+
+  try {
+    if (matchingEntry) {
+      await deleteDoc(doc(db, 'wishlist', matchingEntry.id));
+      showToast('Removed from wishlist.', 'success');
+    } else {
+      await addDoc(collection(db, 'wishlist'), {
+        userId: uid,
+        listingId: String(listingId),
+        timestamp: serverTimestamp(),
+      });
+      showToast('Saved to wishlist.', 'success');
+    }
+
+    invalidateMarketplaceCache(uid);
+    if (typeof window.renderProducts === 'function') window.renderProducts(currentFilter, currentSearchQuery);
+    if (typeof window.loadProfile === 'function') window.loadProfile();
+  } catch {
+    showToast('❌ Wishlist update failed.', 'error');
+  }
+};
+
 function addActivity(action) {
   const user = window.currentUser;
   if (!user?.uid) return;
@@ -2996,7 +3422,14 @@ function renderProfilePanel() {
     upBtn.classList.add('hidden');
     const info = document.getElementById('profileInfo');
     const myListings = document.getElementById('myListings');
-    if (info) info.innerHTML = '<p><strong>Email:</strong> Not logged in</p>';
+    if (info) {
+      if (!window.__authReady) {
+        // Auth still initializing — show a subtle loading placeholder instead of 'not logged in'
+        info.innerHTML = '<div class="text-slate-500">Loading profile</div>';
+      } else {
+        info.innerHTML = '<p><strong>Status:</strong> User not logged in</p>';
+      }
+    }
     if (myListings) myListings.innerHTML = '<p class="text-slate-500">Sign in to view your listings.</p>';
     return;
   }
@@ -3036,41 +3469,127 @@ async function syncPlanFromProfile() {
 }
 
 window.loadProfile = async function () {
+  // Wait for Firebase auth to finish initializing so we don't render "not logged in" prematurely
+  if (!window.__authReady) {
+    await new Promise((resolve) => {
+      try {
+        const unsub = onAuthStateChanged(auth, (u) => { try { unsub(); } catch (e) {} resolve(); });
+      } catch (e) { resolve(); }
+    });
+  }
   const user = window.currentUser;
   const info = document.getElementById('profileInfo');
   const listingsBox = document.getElementById('myListings');
-  if (!info || !listingsBox) return;
+  const wishlistBox = document.getElementById('myWishlist');
+  if (!info || !listingsBox || !wishlistBox) return;
 
   if (!user) {
+    // Auth is ready and there is no user
     info.innerHTML = `
       <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-red-500 font-semibold bg-white/50 dark:bg-slate-900/40">
-        Not logged in
+        User not logged in
       </div>
     `;
     listingsBox.innerHTML = '<p class="text-slate-500">Sign in to view your listings.</p>';
+    wishlistBox.innerHTML = '<p class="text-slate-500">Sign in to view your wishlist.</p>';
     return;
   }
+
+  const [mine, approvedListings, reviewIndex, wishlistEntries] = await Promise.all([
+    window.firebaseListMyListings(user.uid),
+    window.firebaseListListings(),
+    getReviewIndex(),
+    getWishlistEntries(user.uid),
+  ]);
+
+  const approvedMine = mine.filter((item) => (item.status || 'pending') === 'approved');
+  const salesCount = approvedMine.length;
+  const purchaseCount = Number(reviewIndex.byBuyer.get(user.uid)?.count || 0);
+  const reviewCount = Number(reviewIndex.bySeller.get(user.uid)?.count || 0);
+  const wishlistCount = wishlistEntries.length;
+  const activityCount = getUserMeta(user).activity.length;
+  const reputation = getUserReputationSummary(user, {
+    activityCount,
+    salesCount,
+    purchasesCount: purchaseCount,
+    wishlistCount,
+    reviewCount,
+  });
+  // Diagnostic: log reputation for debugging badge visibility
+  try { console.debug('loadProfile: reputation=', reputation, 'ratingAvg=', ratingAvg, 'topRated=', topRated); } catch (e) {}
+  const ratingAvg = Number(reviewIndex.bySeller.get(user.uid)?.avg || 0);
+  const topRated = reviewCount > 0 && ratingAvg >= 4.5;
+  const savedListings = approvedListings.filter((item) => wishlistEntries.some((wish) => String(wish.listingId || '') === String(item.id || '')));
 
   info.innerHTML = `
     <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4">
-      <h3 class="font-syne font-bold text-lg text-slate-900 dark:text-slate-100 mb-2">My Profile</h3>
-      <p class="text-slate-600 dark:text-slate-300"><strong>Email:</strong> ${user.email}</p>
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 class="font-syne font-bold text-lg text-slate-900 dark:text-slate-100 mb-1">My Profile</h3>
+          <p class="text-slate-600 dark:text-slate-300"><strong>Email:</strong> ${escapeHtml(user.email)}</p>
+        </div>
+        <div class="shrink-0">${renderReputationBadge(reputation.tier)}</div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-xs">
+        <div class="rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-3">
+          <p class="text-slate-400 uppercase tracking-wide mb-1">Sales</p>
+          <p class="font-bold text-slate-900 dark:text-slate-100 text-lg">${salesCount}</p>
+        </div>
+        <div class="rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-3">
+          <p class="text-slate-400 uppercase tracking-wide mb-1">Purchases</p>
+          <p class="font-bold text-slate-900 dark:text-slate-100 text-lg">${purchaseCount}</p>
+        </div>
+        <div class="rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-3">
+          <p class="text-slate-400 uppercase tracking-wide mb-1">Activities</p>
+          <p class="font-bold text-slate-900 dark:text-slate-100 text-lg">${reputation.totalActivities}</p>
+        </div>
+        <div class="rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-3">
+          <p class="text-slate-400 uppercase tracking-wide mb-1">Reviews</p>
+          <p class="font-bold text-slate-900 dark:text-slate-100 text-lg">${reviewCount}</p>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-slate-400">
+        <span class="inline-flex items-center gap-1 text-amber-500">${renderRatingStars(ratingAvg, true)}</span>
+        <span>${reviewCount ? `${ratingAvg.toFixed(1)} average from ${reviewCount} reviews` : 'No seller reviews yet'}</span>
+        ${topRated ? renderTopRatedBadge() : ''}
+      </div>
     </div>
   `;
 
-  const mine = await window.firebaseListMyListings(user.uid);
-
   if (!mine.length) {
     listingsBox.innerHTML = '<p class="text-slate-500">No listings yet.</p>';
+  } else {
+    listingsBox.innerHTML = mine.map((item) => {
+      const status = item.status || 'pending';
+      const statusClass = status === 'approved'
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : 'text-amber-600 dark:text-amber-300';
+      return `<div class="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2">${escapeHtml(item.title || 'Untitled Listing')} - <span class="font-semibold ${statusClass}">${escapeHtml(status)}</span></div>`;
+    }).join('');
+  }
+
+  if (!savedListings.length) {
+    wishlistBox.innerHTML = '<p class="text-slate-500">No wishlist items yet. Tap the heart on any listing to save it.</p>';
     return;
   }
 
-  listingsBox.innerHTML = mine.map((item) => {
-    const status = item.status || 'pending';
-    const statusClass = status === 'approved'
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : 'text-amber-600 dark:text-amber-300';
-    return `<div class="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2">${item.title || 'Untitled Listing'} - <span class="font-semibold ${statusClass}">${status}</span></div>`;
+  wishlistBox.innerHTML = savedListings.map((item) => {
+    const sellerReview = reviewIndex.bySeller.get(String(item.userId || item.user_id || '')) || { avg: 0, count: 0 };
+    const sellerLevel = getReputationTier((sellerReview.count || 0) + 1);
+    return `
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-800/60 flex gap-3">
+        <img src="${escapeHtml(item.image || 'https://via.placeholder.com/300')}" onerror="this.src='https://via.placeholder.com/300'" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold truncate text-slate-900 dark:text-slate-100">${escapeHtml(item.title || 'Untitled Listing')}</p>
+          <p class="text-xs text-primary font-semibold">${escapeHtml(item.price || 'Price not set')}</p>
+          <div class="mt-1 flex items-center gap-2 flex-wrap text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="inline-flex items-center gap-1 text-amber-500">${renderRatingStars(sellerReview.avg, true)}</span>
+            <span>${sellerReview.count ? `${sellerReview.avg.toFixed(1)} · ${sellerReview.count} reviews` : 'No seller reviews yet'}</span>
+            ${renderReputationBadge(sellerLevel, true)}
+          </div>
+        </div>
+      </div>
+    `;
   }).join('');
 };
 
@@ -3186,8 +3705,14 @@ async function renderProducts(filter, query = '') {
   grid.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-3xl"></i></div>'
 
   try {
-    let data = await window.firebaseListListings()
-    data = data
+    const [reviewsIndex, wishlistEntries] = await Promise.all([
+      getReviewIndex(),
+      window.currentUser?.uid ? getWishlistEntries(window.currentUser.uid) : Promise.resolve([])
+    ])
+    const wishlistSet = new Set((wishlistEntries || []).map((item) => String(item.listingId || '')))
+
+    const allListings = await window.firebaseListListings()
+    let data = allListings
       .filter((p) => {
         const cat = (p.category || 'other').toLowerCase()
         const title = (p.title || '').toLowerCase()
@@ -3200,6 +3725,13 @@ async function renderProducts(filter, query = '') {
         const sb = b.created_at?.seconds || 0
         return sb - sa
       })
+
+    const salesBySeller = new Map()
+    allListings.forEach((item) => {
+      const sellerId = String(item.userId || item.user_id || '').trim()
+      if (!sellerId) return
+      salesBySeller.set(sellerId, (salesBySeller.get(sellerId) || 0) + 1)
+    })
 
     if (!data?.length) {
       grid.innerHTML = `
@@ -3220,6 +3752,15 @@ async function renderProducts(filter, query = '') {
       const cardCategory = escapeHtml(clampText(p.category || 'other', 20))
       const cardCondition = escapeHtml(clampText(p.condition || 'Good', 20))
       const imageUrl = String(p.image || 'https://via.placeholder.com/600x450')
+      const listingId = String(p.id || '')
+      const sellerId = String(p.userId || p.user_id || '')
+      const sellerReview = reviewsIndex.bySeller.get(sellerId) || { avg: 0, count: 0 }
+      const sellerSales = salesBySeller.get(sellerId) || 0
+      const sellerLevel = getReputationTier((sellerReview.count || 0) + sellerSales)
+      const saved = wishlistSet.has(listingId)
+      const sellerLabel = escapeHtml(clampText(p.seller || p.sellerName || sellerId || 'Seller', 32))
+      const reviewSummary = sellerReview.count ? `${sellerReview.avg.toFixed(1)} · ${sellerReview.count} reviews` : 'No reviews yet'
+      const reviewJsSeller = escapeJs(p.seller || p.sellerName || sellerId || 'this seller')
 
       return `
       <article class="group bg-white dark:bg-slate-800/60 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-sm flex flex-col min-h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
@@ -3227,16 +3768,33 @@ async function renderProducts(filter, query = '') {
           <img src="${escapeHtml(imageUrl)}" onerror="this.src='https://via.placeholder.com/600x450'" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
           <div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent"></div>
           <div class="absolute top-3 left-3 chip text-[0.65rem] uppercase tracking-wide">${cardCategory}</div>
-          <div class="absolute top-3 right-3 rounded-full bg-black/60 text-white text-[0.65rem] px-2.5 py-1 backdrop-blur-sm">${cardCondition}</div>
+          <div class="absolute top-3 right-3 flex flex-col items-end gap-2">
+            <button onclick="event.stopPropagation();toggleWishlistListing('${escapeJs(listingId)}')" class="cx-heart-btn ${saved ? 'saved border-rose-200 bg-white/95 dark:bg-slate-900/80 text-rose-500' : 'border-white/20 bg-black/35 text-white'} w-9 h-9 rounded-full border backdrop-blur-sm flex items-center justify-center shadow-lg shadow-black/10" aria-label="${saved ? 'Remove from wishlist' : 'Save to wishlist'}">
+              <i class="fa-solid fa-heart"></i>
+            </button>
+            <div class="rounded-full bg-black/60 text-white text-[0.65rem] px-2.5 py-1 backdrop-blur-sm">${cardCondition}</div>
+          </div>
         </div>
         <div class="p-5 flex flex-col flex-1 gap-3">
           <div>
             <h3 class="font-semibold text-base leading-snug text-slate-900 dark:text-slate-100 line-clamp-2">${cardTitle}</h3>
             <p class="text-[11px] uppercase tracking-wide text-slate-400 mt-1">Approved student listing</p>
+            <div class="mt-2 flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-slate-400">
+              <span class="inline-flex items-center gap-1 text-amber-500">${renderRatingStars(sellerReview.avg, true)}</span>
+              <span>${escapeHtml(reviewSummary)}</span>
+            </div>
+            <div class="mt-2 flex items-center gap-2 flex-wrap">
+              ${renderReputationBadge(sellerLevel, true)}
+              ${sellerReview.count && sellerReview.avg >= 4.5 ? renderTopRatedBadge() : ''}
+            </div>
+            <p class="mt-2 text-xs text-slate-500 dark:text-slate-400"><span class="font-semibold text-slate-700 dark:text-slate-200">Seller:</span> ${sellerLabel}</p>
           </div>
-          <div class="flex items-center justify-between gap-3 mt-auto">
+          <div class="flex flex-col gap-2 mt-auto">
             <p class="font-syne font-bold text-primary text-xl">${cardPrice}</p>
-            <button onclick="startChat('${p.id}','${p.userId || p.user_id || ''}')" class="btn-shine px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition shadow-lg shadow-primary/20">Contact</button>
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="startChat('${escapeJs(listingId)}','${escapeJs(sellerId)}')" class="btn-shine flex-1 min-w-[110px] px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition shadow-lg shadow-primary/20">Contact</button>
+              <button onclick="openSellerReviewModal('${escapeJs(sellerId)}','${reviewJsSeller}','${escapeJs(listingId)}')" class="flex-1 min-w-[110px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">Rate Seller</button>
+            </div>
           </div>
         </div>
       </article>
@@ -3700,6 +4258,43 @@ function openModal(type, data) {
       </div>`;
   }
 
+  else if (type === 'seller-review') {
+    const sellerName = escapeHtml(data?.sellerName || 'this seller');
+    const listingLabel = escapeHtml(data?.listingId || '');
+    window.__sellerReviewContext = {
+      sellerId: String(data?.sellerId || '').trim(),
+      sellerName: String(data?.sellerName || '').trim(),
+      listingId: String(data?.listingId || '').trim(),
+    };
+    window.__sellerReviewRating = 5;
+    html = `
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="font-syne font-bold text-2xl">Rate Seller</h2>
+            <p class="text-slate-400 text-sm mt-1">Share a quick review for ${sellerName}${listingLabel ? `<span class="text-slate-500"> • Listing ${listingLabel}</span>` : ''}</p>
+          </div>
+          <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 mb-5">
+          <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">How was the interaction?</p>
+          <div class="flex items-center gap-1 mb-2">
+            ${[1,2,3,4,5].map((rating) => `
+              <button type="button" data-review-star="${rating}" onclick="setReviewStars(${rating})" class="cx-star-btn text-2xl text-amber-400/30 hover:text-amber-400 focus:outline-none"><i class="fa-solid fa-star"></i></button>
+            `).join('')}
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Tap a star to choose your rating.</p>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Review</label>
+            <textarea id="seller-review-text" rows="4" placeholder="Write a short note about the seller..." class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition resize-none"></textarea>
+          </div>
+          <button onclick="submitSellerReview()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Submit Review</button>
+        </div>
+      </div>`;
+  }
+
   else if (type === 'post-listing') {
     html = `
       <div class="p-8">
@@ -3744,6 +4339,9 @@ function openModal(type, data) {
 
   box.innerHTML = html;
   overlay.classList.add('open');
+  if (type === 'seller-review') {
+    requestAnimationFrame(() => setReviewStars(5));
+  }
   requestAnimationFrame(() => { box.classList.remove('scale-95','opacity-0'); box.classList.add('scale-100','opacity-100'); });
 }
 
@@ -3751,6 +4349,7 @@ function closeModal() {
   const overlay = document.getElementById('modal-overlay');
   const box = document.getElementById('modal-box');
   box.classList.add('scale-95','opacity-0'); box.classList.remove('scale-100','opacity-100');
+  window.__sellerReviewContext = null;
   setTimeout(() => overlay.classList.remove('open'), 250);
 }
 
@@ -3913,6 +4512,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 </script>
+
+  <!-- Replace YOUR_NUMBER with your WhatsApp number -->
+  <a
+    href="https://wa.me/923219490253"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Chat with us on WhatsApp"
+    title="Chat with us on WhatsApp"
+    class="wa-float"
+  >
+    <i class="fab fa-whatsapp" aria-hidden="true"></i>
+    <span class="wa-tooltip">Chat with us on WhatsApp</span>
+  </a>
 
 </body>
 </html>
