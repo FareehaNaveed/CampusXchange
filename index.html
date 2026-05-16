@@ -233,6 +233,165 @@
         radial-gradient(circle at center, rgba(251,191,36,.26), rgba(251,191,36,0)),
         repeating-radial-gradient(circle at center, rgba(148,163,184,.2) 0 1px, transparent 1px 8px);
     }
+
+    /* ── Auth modal animations ── */
+    @keyframes authPanelIn {
+      from { opacity: 0; transform: translateY(14px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes authItemIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .auth-panel-animate {
+      animation: authPanelIn .48s cubic-bezier(.23,1,.32,1) both;
+    }
+    .auth-stagger > * {
+      opacity: 0;
+      animation: authItemIn .46s cubic-bezier(.23,1,.32,1) forwards;
+    }
+    .auth-stagger > *:nth-child(1) { animation-delay: .05s; }
+    .auth-stagger > *:nth-child(2) { animation-delay: .1s; }
+    .auth-stagger > *:nth-child(3) { animation-delay: .15s; }
+    .auth-stagger > *:nth-child(4) { animation-delay: .2s; }
+    .auth-stagger > *:nth-child(5) { animation-delay: .25s; }
+    .auth-stagger > *:nth-child(6) { animation-delay: .3s; }
+    .auth-stagger > *:nth-child(7) { animation-delay: .35s; }
+    .auth-stagger > *:nth-child(8) { animation-delay: .4s; }
+
+    /* ── Auth toast panel ── */
+    #auth-toast-host {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      z-index: 10010;
+      width: min(420px, calc(100vw - 2rem));
+      pointer-events: none;
+    }
+    .auth-toast {
+      pointer-events: auto;
+      border-radius: 22px;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow: hidden;
+      transform: translateY(12px) scale(.98);
+      opacity: 0;
+      transition: transform .32s cubic-bezier(.23,1,.32,1), opacity .26s;
+    }
+    .dark .auth-toast {
+      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: 0 24px 64px rgba(2, 6, 23, 0.55);
+    }
+    .auth-toast.open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    .auth-toast-head {
+      background: linear-gradient(120deg, rgba(37,99,235,.14), rgba(255,193,7,.18));
+    }
+    .dark .auth-toast-head {
+      background: linear-gradient(120deg, rgba(37,99,235,.25), rgba(255,193,7,.2));
+    }
+    .auth-toast-fields > * {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: authItemIn .42s cubic-bezier(.23,1,.32,1) forwards;
+    }
+    .auth-toast-fields > *:nth-child(1) { animation-delay: .04s; }
+    .auth-toast-fields > *:nth-child(2) { animation-delay: .09s; }
+    .auth-toast-fields > *:nth-child(3) { animation-delay: .14s; }
+    .auth-toast-fields > *:nth-child(4) { animation-delay: .19s; }
+    .auth-toast-fields > *:nth-child(5) { animation-delay: .24s; }
+    .auth-toast-fields > *:nth-child(6) { animation-delay: .29s; }
+
+    /* ── Pancake theme toggle ── */
+    .pancake-toggle {
+      position: relative;
+      width: 120px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(15,23,42,.12);
+      background: #2e394d;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.36), 0 8px 20px rgba(15,23,42,.16);
+      padding: 3px;
+      overflow: hidden;
+      transition: all .28s cubic-bezier(.23,1,.32,1);
+    }
+    .pancake-toggle::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(255,255,255,.28), rgba(255,255,255,0));
+      pointer-events: none;
+    }
+    .pancake-toggle-dark {
+      background: #43326b;
+      border-color: rgba(251,191,36,.45);
+      box-shadow: inset 0 0 0 1px rgba(251,191,36,.18), 0 10px 24px rgba(2,6,23,.45);
+    }
+    .pancakes {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 28px;
+      height: 28px;
+      transform: translateX(0);
+      transition: transform .52s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .pancake-toggle-dark .pancakes {
+      transform: translateX(86px);
+    }
+    .pancake {
+      background: #e27c31;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      box-shadow: 0 2px 0 2px #fbbe7c;
+      transition: 0.24s ease;
+    }
+    .pancake:nth-child(2) {
+      top: -4px;
+      left: -2px;
+      transform: scale(0);
+      transition-delay: .12s;
+    }
+    .pancake:nth-child(3) {
+      top: -8px;
+      left: -1px;
+      transform: scale(0);
+      transition-delay: .12s;
+    }
+    .butter {
+      width: 11px;
+      height: 10px;
+      background: #fbdb60;
+      top: 2px;
+      left: 9px;
+      position: absolute;
+      border-radius: 4px;
+      box-shadow: 0 1px 0 1px #d67823;
+      transform: scale(0);
+      transition: .2s ease;
+    }
+    .pancake-toggle-dark .pancake:nth-child(2) {
+      transform: scale(1);
+      transition-delay: .16s;
+    }
+    .pancake-toggle-dark .pancake:nth-child(3) {
+      transform: scale(1);
+      transition-delay: .28s;
+    }
+    .pancake-toggle-dark .butter {
+      transform: scale(1);
+      transition-delay: .4s;
+    }
   </style>
 </head>
 
@@ -1751,9 +1910,13 @@ window.onload = () => {
       <!-- Right controls -->
       <div class="flex items-center gap-3">
         <!-- Theme toggle -->
-        <button id="theme-toggle" onclick="toggleTheme()" class="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle theme">
-          <i class="fa-solid fa-sun text-amber-400 hidden dark:block"></i>
-          <i class="fa-solid fa-moon text-slate-600 dark:hidden"></i>
+        <button id="theme-toggle" onclick="toggleTheme()" class="pancake-toggle" aria-label="Toggle pancake theme" title="Pancake toggle">
+          <span class="pancakes">
+            <span class="pancake"></span>
+            <span class="pancake"></span>
+            <span class="pancake"></span>
+            <span class="butter"></span>
+          </span>
         </button>
 
         <button id="auth-login-btn" onclick="openModal('login')" class="hidden md:flex btn-shine items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-primary/25 hover:bg-blue-700 transition-all duration-200">
@@ -2345,24 +2508,53 @@ window.onload = () => {
       <div class="text-center mb-12">
         <h2 class="font-syne font-extrabold text-3xl sm:text-4xl">Meet the founders</h2>
       </div>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/50 card-hover">
-          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30"><span class="text-white font-syne font-bold text-xl">AR</span></div>
-          <h4 class="font-syne font-bold text-lg">Ali Raza</h4>
-          <p class="text-primary text-sm font-semibold mb-3">CEO & Co-Founder</p>
-          <p class="text-slate-500 dark:text-slate-400 text-sm">Ex-LUMS CS grad passionate about EdTech and peer marketplaces.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Card: Fareeha Naveed -->
+        <div class="glass rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/40 card-hover h-full flex flex-col">
+          <div class="mx-auto mb-4">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center shadow-lg shadow-primary/25 text-white text-xl font-bold">FN</div>
+          </div>
+          <div class="flex-1 flex flex-col">
+            <h4 class="font-syne font-bold text-lg">Fareeha Naveed</h4>
+            <p class="text-primary text-sm font-semibold mb-3">Founder & Lead Web Developer</p>
+            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">Leads product vision, frontend development, UI/UX and platform architecture. Handles backend integrations, Firebase systems and platform optimization.</p>
+          </div>
         </div>
-        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/50 card-hover">
-          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-violet-500/30"><span class="text-white font-syne font-bold text-xl">SA</span></div>
-          <h4 class="font-syne font-bold text-lg">Sara Ahmad</h4>
-          <p class="text-violet-600 dark:text-violet-400 text-sm font-semibold mb-3">CTO & Co-Founder</p>
-          <p class="text-slate-500 dark:text-slate-400 text-sm">Full-stack engineer and NUST alumni building scalable campus tech.</p>
+
+        <!-- Card: Barira Sohail Khan -->
+        <div class="glass rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/40 card-hover h-full flex flex-col">
+          <div class="mx-auto mb-4">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200/20 text-white text-xl font-bold">BS</div>
+          </div>
+          <div class="flex-1 flex flex-col">
+            <h4 class="font-syne font-bold text-lg">Barira Sohail Khan</h4>
+            <p class="text-primary text-sm font-semibold mb-3">Founder & Operations Lead</p>
+            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">Responsible for operational planning, workflow coordination, and managing platform growth and community operations.</p>
+          </div>
         </div>
-        <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/50 card-hover sm:col-span-2 lg:col-span-1">
-          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30"><span class="text-white font-syne font-bold text-xl">HK</span></div>
-          <h4 class="font-syne font-bold text-lg">Hassan Khan</h4>
-          <p class="text-emerald-600 dark:text-emerald-400 text-sm font-semibold mb-3">Head of Growth</p>
-          <p class="text-slate-500 dark:text-slate-400 text-sm">Marketing wizard who took CampusXchange from 0 to 12K users.</p>
+
+        <!-- Card: Ghazaiz Nadeem -->
+        <div class="glass rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/40 card-hover h-full flex flex-col">
+          <div class="mx-auto mb-4">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200/20 text-white text-xl font-bold">GN</div>
+          </div>
+          <div class="flex-1 flex flex-col">
+            <h4 class="font-syne font-bold text-lg">Ghazaiz Nadeem</h4>
+            <p class="text-primary text-sm font-semibold mb-3">Founder & Idea Architect</p>
+            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">Original concept creator and business analyst focused on product-market fit, research and reporting.</p>
+          </div>
+        </div>
+
+        <!-- Card: Fatima Farhan -->
+        <div class="glass rounded-2xl p-6 text-center border border-slate-100 dark:border-slate-700/40 card-hover h-full flex flex-col">
+          <div class="mx-auto mb-4">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center shadow-lg shadow-amber-200/20 text-white text-xl font-bold">FF</div>
+          </div>
+          <div class="flex-1 flex flex-col">
+            <h4 class="font-syne font-bold text-lg">Fatima Farhan</h4>
+            <p class="text-primary text-sm font-semibold mb-3">Founder & Community Manager</p>
+            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">Focused on student engagement, community-building, communications and establishing trust within CampusXchange.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -2373,19 +2565,19 @@ window.onload = () => {
       <div class="space-y-8">
         <div class="flex gap-5">
           <div class="flex flex-col items-center"><div class="timeline-dot"></div><div class="flex-1 w-[2px] bg-slate-200 dark:bg-slate-700"></div></div>
-          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2022 — The Idea</p><h4 class="font-bold mb-1">Born in a Lahore hostel room</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Frustrated with expensive textbooks, Ali and Sara built the first prototype in a weekend.</p></div>
+          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2026 — Idea & Research</p><h4 class="font-bold mb-1">CampusXchange concept formed</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Started as an entrepreneurship project focused on solving common student marketplace problems within universities.</p></div>
         </div>
         <div class="flex gap-5">
           <div class="flex flex-col items-center"><div class="timeline-dot"></div><div class="flex-1 w-[2px] bg-slate-200 dark:bg-slate-700"></div></div>
-          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2023 — Launch</p><h4 class="font-bold mb-1">Public beta at 5 universities</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Within 3 months, over 2,000 students joined the platform with 800+ active listings.</p></div>
+          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2026 — Design & Development</p><h4 class="font-bold mb-1">Interface & platform build</h4><p class="text-slate-500 dark:text-slate-400 text-sm">The team designed and developed the platform interface, marketplace structure and student-focused features using modern web technologies.</p></div>
         </div>
         <div class="flex gap-5">
           <div class="flex flex-col items-center"><div class="timeline-dot"></div><div class="flex-1 w-[2px] bg-slate-200 dark:bg-slate-700"></div></div>
-          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2024 — Skill Hub</p><h4 class="font-bold mb-1">Launched the learning platform</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Added 240+ courses and onboarded 60+ instructors. Pro plan launched.</p></div>
+          <div class="pb-8"><p class="text-primary font-semibold text-sm mb-1">2026 — MVP Launch</p><h4 class="font-bold mb-1">First MVP released</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Launched a working MVP with marketplace, skill hub, authentication and basic admin features for early testing and feedback.</p></div>
         </div>
         <div class="flex gap-5">
           <div class="flex flex-col items-center"><div class="timeline-dot bg-accent"></div></div>
-          <div><p class="text-amber-500 font-semibold text-sm mb-1">2025 — Scale</p><h4 class="font-bold mb-1">12K+ students across Pakistan</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Expanding to 40+ universities. Seed funding secured. The journey continues.</p></div>
+          <div><p class="text-amber-500 font-semibold text-sm mb-1">Future Vision</p><h4 class="font-bold mb-1">Grow into a trusted student ecosystem</h4><p class="text-slate-500 dark:text-slate-400 text-sm">Long-term goal: expand CampusXchange into a trusted student ecosystem for learning, collaboration and secure marketplace interactions.</p></div>
         </div>
       </div>
     </div>
@@ -2586,6 +2778,7 @@ window.onload = () => {
     <!-- content injected by JS -->
   </div>
 </div>
+<div id="auth-toast-host"></div>
 
 <!-- ╔══════════════════════════════════════════════════════╗ -->
 <!-- ║                  JAVASCRIPT                         ║ -->
@@ -2692,9 +2885,18 @@ function hydrateRoute() {
 function toggleTheme() {
   document.documentElement.classList.toggle('dark');
   localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  syncPancakeToggle();
 }
 if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
   document.documentElement.classList.add('dark');
+}
+
+function syncPancakeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  const dark = document.documentElement.classList.contains('dark');
+  btn.classList.toggle('pancake-toggle-dark', dark);
+  btn.setAttribute('aria-label', dark ? 'Switch to light pancake mode' : 'Switch to dark pancake mode');
 }
 
 /* ═══════════════════════════════════════════
@@ -3264,14 +3466,92 @@ const TERMS = `<div class="text-sm text-slate-500 dark:text-slate-400 leading-re
   <p><strong class="text-slate-700 dark:text-slate-300">7. Changes to Terms</strong><br/>We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the new terms.</p>
 </div>`;
 
+function closeAuthToast() {
+  const host = document.getElementById('auth-toast-host');
+  const toast = host?.querySelector('.auth-toast');
+  if (!toast) return;
+  toast.classList.remove('open');
+  setTimeout(() => {
+    if (host) host.innerHTML = '';
+  }, 260);
+}
+
+function openAuthToast(type = 'login') {
+  const host = document.getElementById('auth-toast-host');
+  if (!host) return;
+
+  const isSignup = type === 'signup';
+  host.innerHTML = `
+    <div class="auth-toast">
+      <div class="auth-toast-head px-5 py-4 border-b border-slate-200/70 dark:border-slate-700/70 flex items-start justify-between gap-3">
+        <div>
+          <p class="font-syne font-bold text-lg text-slate-900 dark:text-slate-100">${isSignup ? 'Create account' : 'Welcome back'}</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${isSignup ? 'Join CampusXchange in seconds' : 'Sign in from this quick toast panel'}</p>
+        </div>
+        <button onclick="closeAuthToast()" class="w-8 h-8 rounded-xl bg-white/70 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-5 space-y-3 auth-toast-fields">
+        ${isSignup ? `
+          <div class="grid grid-cols-2 gap-3">
+            <input id="signup-first-name" type="text" placeholder="First name" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+            <input id="signup-last-name" type="text" placeholder="Last name" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          </div>
+          <input id="signup-email" type="email" placeholder="you@university.edu.pk" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          <select id="signup-university" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition">
+            <option>Select your university</option>
+            <option>LUMS, Lahore</option>
+            <option>NUST, Islamabad</option>
+            <option>IBA, Karachi</option>
+            <option>FAST-NUCES</option>
+            <option>UET Lahore</option>
+            <option>Other</option>
+          </select>
+          <div class="relative">
+            <input id="pwd-signup" type="password" placeholder="Min. 8 characters" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition pr-10" />
+            <button onclick="togglePwd('pwd-signup')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-eye text-sm"></i></button>
+          </div>
+          <label class="flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+            <input type="checkbox" id="terms-check" class="mt-0.5 rounded border-slate-300" />
+            <span>I agree to the Terms and Privacy Policy.</span>
+          </label>
+          <button onclick="fakeSignup()" class="btn-shine w-full bg-primary text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Create Account</button>
+          <p class="text-center text-xs text-slate-500 dark:text-slate-400">Already have an account? <button onclick="openAuthToast('login')" class="text-primary font-semibold hover:underline">Sign In</button></p>
+        ` : `
+          <input id="login-email" type="email" placeholder="you@university.edu.pk" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
+          <div class="relative">
+            <input id="pwd-login" type="password" placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition pr-10" />
+            <button onclick="togglePwd('pwd-login')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-eye text-sm"></i></button>
+          </div>
+          <button onclick="fakeLogin()" class="btn-shine w-full bg-primary text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">Sign In</button>
+          <p class="text-center text-xs text-slate-500 dark:text-slate-400">New here? <button onclick="openAuthToast('signup')" class="text-primary font-semibold hover:underline">Create account</button></p>
+        `}
+      </div>
+    </div>
+  `;
+
+  const toast = host.querySelector('.auth-toast');
+  requestAnimationFrame(() => toast?.classList.add('open'));
+}
+
+function closeAuthSurface() {
+  closeModal();
+  closeAuthToast();
+}
+
 function openModal(type, data) {
+  if (type === 'login' || type === 'signup') {
+    openAuthToast(type);
+    return;
+  }
+
   const overlay = document.getElementById('modal-overlay');
   const box = document.getElementById('modal-box');
   let html = '';
 
   if (type === 'login') {
     html = `
-      <div class="p-8">
+      <div class="p-8 auth-panel-animate">
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="font-syne font-bold text-2xl">Welcome back</h2>
@@ -3279,7 +3559,7 @@ function openModal(type, data) {
           </div>
           <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="space-y-4">
+        <div class="space-y-4 auth-stagger">
           <div>
             <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">University Email</label>
             <input id="login-email" type="email" placeholder="you@university.edu.pk" class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-primary text-sm transition" />
@@ -3303,7 +3583,7 @@ function openModal(type, data) {
 
   else if (type === 'signup') {
     html = `
-      <div class="p-8">
+      <div class="p-8 auth-panel-animate">
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="font-syne font-bold text-2xl">Create account</h2>
@@ -3311,7 +3591,7 @@ function openModal(type, data) {
           </div>
           <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="space-y-4">
+        <div class="space-y-4 auth-stagger">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">First Name</label>
@@ -3497,7 +3777,7 @@ async function fakeLogin() {
       window.currentUser = user
       addActivity('Logged in')
     }
-    closeModal()
+    closeAuthSurface()
     showToast('🎉 Welcome back, ' + email + '!', 'success')
   } catch (err) {
     showToast('❌ ' + err.message, 'error')
@@ -3532,7 +3812,7 @@ async function fakeSignup() {
       window.currentUser = user
       addActivity('Created account')
     }
-    closeModal()
+    closeAuthSurface()
     showToast('🎉 Account created!', 'success')
   } catch (err) {
     showToast('❌ ' + err.message, 'error')
@@ -3613,6 +3893,7 @@ document.addEventListener('DOMContentLoaded', () => {
   showPage('home');
   hydrateRoute();
   window.addEventListener('hashchange', hydrateRoute);
+  syncPancakeToggle();
 
   // Ensure auth controls are in the right state even if auth callback fires early.
   if (typeof updateNavForUser === 'function') {
