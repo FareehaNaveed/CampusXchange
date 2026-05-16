@@ -2400,8 +2400,8 @@ window.onload = () => {
     <div id="plan-banner-pro" class="hidden rounded-2xl bg-gradient-to-r from-primary to-blue-700 p-5 mb-8 flex items-center gap-4">
       <i class="fa-solid fa-crown text-accent text-xl"></i>
       <div>
-        <p class="font-semibold text-white">Pro Plan — PKR 999/month</p>
-        <p class="text-sm text-blue-200">Unlock 240+ courses, live sessions, certificates & full LMS access.</p>
+        <p class="font-semibold text-white">Premium Plan — PKR 299/month</p>
+        <p class="text-sm text-blue-200">Unlock premium skill hub, priority visibility & exclusive features.</p>
       </div>
       <button onclick="openModal('pro-checkout')" class="ml-auto btn-shine bg-white text-primary px-5 py-2 rounded-xl font-bold text-sm hover:bg-slate-100 transition">Upgrade Now</button>
     </div>
@@ -2698,19 +2698,20 @@ window.onload = () => {
         </ul>
         <button onclick="openModal('signup')" class="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition">Get Started</button>
       </div>
-      <div class="rounded-2xl border-2 border-primary p-8 bg-primary/5 dark:bg-primary/10 relative overflow-hidden">
-        <div class="absolute top-4 right-4 badge bg-accent text-slate-900 text-[0.65rem]"><i class="fa-solid fa-crown"></i> Popular</div>
-        <h3 class="font-syne font-bold text-xl mb-1">Pro</h3>
-        <p class="text-4xl font-syne font-extrabold mb-1">PKR 999<span class="text-base font-normal text-slate-400">/mo</span></p>
-        <p class="text-slate-400 text-sm mb-6">Cancel anytime</p>
-        <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300 mb-8">
-          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Everything in Free</li>
-          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> 240+ courses</li>
-          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Completion certificates</li>
-          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Live Q&A sessions</li>
-          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Priority support</li>
+      <div class="rounded-2xl border-2 border-primary p-8 bg-gradient-to-br from-primary/8 to-blue-600/8 dark:from-primary/15 dark:to-blue-600/12 relative overflow-hidden shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow duration-300">
+        <div class="absolute top-4 right-4 badge bg-accent text-slate-900 text-[0.65rem] font-bold shadow-lg shadow-accent/40"><i class="fa-solid fa-crown"></i> MOST POPULAR</div>
+        <h3 class="font-syne font-bold text-xl mb-1 text-slate-900 dark:text-white">Premium</h3>
+        <p class="text-4xl font-syne font-extrabold mb-1 text-slate-900 dark:text-white">PKR 299<span class="text-base font-normal text-slate-500 dark:text-slate-400">/mo</span></p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mb-6 font-medium">Cancel anytime, no lock-in</p>
+        <ul class="space-y-3 text-sm text-slate-700 dark:text-slate-200 mb-8">
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 font-bold"></i> <span class="font-medium">Premium skill hub access</span></li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 font-bold"></i> <span class="font-medium">Priority marketplace visibility</span></li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 font-bold"></i> <span class="font-medium">Enhanced profile features</span></li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 font-bold"></i> <span class="font-medium">Faster support response</span></li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 font-bold"></i> <span class="font-medium">Premium community access</span></li>
+          <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 font-bold"></i> <span class="font-medium">Exclusive learning features</span></li>
         </ul>
-        <button onclick="openModal('pro-checkout')" class="btn-shine w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/30">Upgrade to Pro</button>
+        <button onclick="openModal('pro-checkout')" class="btn-shine w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/35 transform hover:scale-105 duration-200">Upgrade to Premium</button>
       </div>
     </div>
   </div>
@@ -3643,13 +3644,13 @@ function openModal(type, data) {
     html = `
       <div class="p-8">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="font-syne font-bold text-2xl">Upgrade to Pro</h2>
+          <h2 class="font-syne font-bold text-2xl">Upgrade to Premium</h2>
           <button onclick="closeModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="bg-gradient-to-br from-primary to-blue-700 rounded-2xl p-5 mb-6">
-          <div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-crown text-accent"></i><span class="text-white font-bold">Pro Plan</span></div>
-          <p class="text-3xl font-syne font-extrabold text-white mb-1">PKR 999<span class="text-base font-normal text-blue-200">/month</span></p>
-          <p class="text-blue-200 text-sm">240+ courses · Certificates · Live Sessions</p>
+        <div class="bg-gradient-to-br from-primary to-blue-700 rounded-2xl p-5 mb-6 shadow-lg shadow-primary/30">
+          <div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-crown text-accent"></i><span class="text-white font-bold">Premium Plan</span></div>
+          <p class="text-3xl font-syne font-extrabold text-white mb-1">PKR 299<span class="text-base font-normal text-blue-200">/month</span></p>
+          <p class="text-blue-200 text-sm">Premium skill hub · Priority visibility · Enhanced features</p>
         </div>
         <div class="space-y-4">
           <div>
@@ -3671,7 +3672,7 @@ function openModal(type, data) {
             Secured with 256-bit SSL encryption. Cancel anytime.
           </div>
           <button onclick="fakePurchase()" class="btn-shine w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-primary/25">
-            Pay PKR 999 / month
+            Pay PKR 299 / month
           </button>
         </div>
       </div>`;
